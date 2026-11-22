@@ -21,7 +21,7 @@
     "bin"
   ],
   "bin": {
-    "moai": "bin/moai"
+    "sok-moai": "bin/moai"
   },
   "scripts": {
     "build": "node scripts/build-vendor.mjs",
