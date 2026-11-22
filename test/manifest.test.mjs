@@ -17,7 +17,7 @@ test("plugin.json declares only the manifest fields of this stage", () => {
 });
 
 test("plugin.json names the agents plugin and the files sidecar as its dependencies, each with a range of its versions", () => {
-  assert.deepEqual(manifest.dependencies, { agents: "^0.0.1", "@soksak/sidecar-files": "^0.0.11" });
+  assert.deepEqual(manifest.dependencies, { agents: "^0.0.1", "@soksak/sidecar-files": ">=0.0.12" });
 });
 
 test("plugin.json contributes one moai group to the extension point agents.makers, with a module inside the plugin", () => {

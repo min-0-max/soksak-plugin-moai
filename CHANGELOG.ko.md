@@ -3,6 +3,7 @@
 [English](CHANGELOG.md)
 
 - M2-2a: 시드 값과 renderer예요. `ui/seed-model.js`가 `.moai` template 8개의 값을 프로젝트, git 설정, 응용 프로그램 locale, init 기본값에서 정하고 렌더링해요. Build는 release의 `.moai` 폴더를 렌더링하지 않은 채 `maker/seed/.moai`로 실어요.
+- M2-2d: plugin이 `@soksak/sidecar-files`를 `>=0.0.12`로 요구해요. 시드가 쓰는 `createFolder`가 있는 배포본이에요.
 - M2-2b: moai 페이지가 페이지를 열 때마다 files sidecar로 `.moai/`를 시드해요. 폴더는 `createFolder`로, 없는 파일은 `expect: null`인 `write`로 만들어요. 있는 파일은 그대로 두고 보고하며, 지원하지 않는 로케일은 이름과 지원 집합을 적어 거부해요. `createFolder`가 있는 sidecar 배포본은 보류예요(M2-2d).
 - M2-2b: 시드 계획(`ui/seed-plan.js`)이 프로젝트에 없는 시드 파일을 정하고, 각 파일을 프로젝트 경로로 렌더링하며, `expect: null`인 files sidecar write 요청을 만들어요. 페이지 연결은 보류예요(M2-2b 참고).
 - M2-2b: 릴리스 빌드가 고정한 릴리스 버전과 시드의 정렬된 파일 목록을 `maker/seed/index.json`으로 써요. plugin modules 경로가 폴더를 나열하지 않으므로 페이지가 이 파일을 읽어 프로젝트를 시드해요. 테스트: `test/release-build.test.mjs`.
