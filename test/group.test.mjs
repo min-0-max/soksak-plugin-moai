@@ -1,96 +1,82 @@
-// Checks the group module with a release-shaped fixture: the shipped maker/index.json is read over HTTP from the plugin modules path, as the application serves it.
+// Checks the group module with a release-shaped data object: agents, skills and files as the release build writes maker/index.js.
 import assert from "node:assert/strict";
-import { createServer } from "node:http";
-import { readFileSync, existsSync } from "node:fs";
-import { once } from "node:events";
 import test from "node:test";
+import { groupFrom } from "../ui/makers/moai.js";
 
-const FIXTURE = new URL("./fixtures/release/", import.meta.url);
-const PREFIX = "/modules/@soksak/plugin-moai/";
+const MANAGER_SPEC = ".claude/agents/moai/manager-spec.md";
+const MANAGER_DEVELOP = ".claude/agents/moai/manager-develop.md";
+const RUN = ".claude/skills/moai-run/SKILL.md";
 
-// Serves the fixture at the modules path of the plugin, as the application serves an installed plugin.
-async function serve() {
-  const server = createServer((request, response) => {
-    const path = decodeURIComponent(new URL(request.url, "http://127.0.0.1").pathname);
-    const relative = path.startsWith(PREFIX) ? path.slice(PREFIX.length) : null;
-    const file = relative && !relative.split("/").some((segment) => segment === "" || segment === "." || segment === "..") ? new URL(relative, FIXTURE) : null;
-    if (!file || !existsSync(file)) {
-      response.writeHead(404).end();
-      return;
-    }
-    response.writeHead(200, { "content-type": "application/json" }).end(readFileSync(file));
-  });
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
-  return server;
+function index(overrides = {}) {
+  return {
+    agents: [
+      { name: "manager-spec", path: MANAGER_SPEC, cli: "claude", model: "opus" },
+      { name: "manager-develop", path: MANAGER_DEVELOP, cli: "claude" },
+    ],
+    skills: [".claude/skills/moai-run"],
+    files: [
+      { path: MANAGER_SPEC, text: "---\nname: manager-spec\n---\nSPEC body\n" },
+      { path: MANAGER_DEVELOP, text: "---\nname: manager-develop\n---\n" },
+      { path: RUN, text: "---\nname: moai-run\n---\n" },
+      { path: ".claude/skills/moai-run/extra.md", text: "extra\n" },
+    ],
+    ...overrides,
+  };
 }
 
-test("the group reads the shipped index through the plugin modules path and lists its agents and skills", async () => {
-  const { groupFromIndex } = await import("../ui/makers/moai.js");
-  const server = await serve();
-  try {
-    const { port } = server.address();
-    const group = await groupFromIndex(new URL(`http://127.0.0.1:${port}${PREFIX}maker/index.json`));
-    assert.deepEqual(group.agents, [
-      { name: "manager-spec", path: "agents/manager-spec.md", cli: "claude", model: "opus" },
-      { name: "manager-develop", path: "agents/manager-develop.md", cli: "claude" },
-    ]);
-    assert.deepEqual(group.skills, ["skills/moai-run", "skills/moai-workflow-spec"]);
-  } finally {
-    server.close();
-    await once(server, "close");
-  }
+test("the group returns the files of the index, as project paths with their text", () => {
+  const group = groupFrom(index());
+  assert.deepEqual(group.files, index().files);
 });
 
-test("the group declares the moai identity, the claude-only CLI, the home variable, the bin path and the project folder", async () => {
-  const { groupFromIndex } = await import("../ui/makers/moai.js");
-  const server = await serve();
-  try {
-    const { port } = server.address();
-    const group = await groupFromIndex(new URL(`http://127.0.0.1:${port}${PREFIX}maker/index.json`));
-    assert.equal(group.id, "moai");
-    assert.equal(group.name, "moai");
-    assert.equal(group.plugin, "plugin");
-    assert.deepEqual(group.clis, ["claude"]);
-    assert.deepEqual(group.variables, { MOAI_HOME: "{home}/.moai" });
-    assert.deepEqual(group.path, ["bin"]);
-    assert.deepEqual(group.folders, [".moai/"]);
-    assert.equal(group.rules.length, 1);
-    // No group field holds a port: the moai web server belongs to the launch of the plugin (M4).
-    assert.equal(JSON.stringify(group).includes('"port"'), false);
-  } finally {
-    server.close();
-    await once(server, "close");
-  }
+test("the group lists its agents with the model kept, and every agent path names an entry of files", () => {
+  const group = groupFrom(index());
+  assert.deepEqual(group.agents, [
+    { name: "manager-spec", path: MANAGER_SPEC, cli: "claude", model: "opus" },
+    { name: "manager-develop", path: MANAGER_DEVELOP, cli: "claude" },
+  ]);
+  const paths = new Set(group.files.map((file) => file.path));
+  for (const agent of group.agents) assert.ok(paths.has(agent.path), agent.path);
 });
 
-test("the group refuses an index that does not match the shape, and names the index and the field", async () => {
-  const { groupFromIndex } = await import("../ui/makers/moai.js");
-  const server = createServer((request, response) => {
-    response.writeHead(200, { "content-type": "application/json" }).end('{"agents":[{"name":"x","path":"../x.md","cli":"claude"}],"skills":[]}');
-  });
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
-  try {
-    const { port } = server.address();
-    const url = new URL(`http://127.0.0.1:${port}${PREFIX}maker/index.json`);
-    await assert.rejects(groupFromIndex(url), (error) => error.message.includes("maker/index.json") && error.message.includes("agents[0].path"));
-  } finally {
-    server.close();
-    await once(server, "close");
-  }
+test("the group refuses an agent path that names no entry of files, and names the agent field", () => {
+  const data = index({ files: index().files.filter((file) => file.path !== MANAGER_DEVELOP) });
+  assert.throws(() => groupFrom(data), /agents\[1\]\.path/);
 });
 
-test("an agent model that is not a non-empty string is an error that names the index field", async () => {
-  const server = createServer((request, response) => {
-    response.writeHead(200, { "content-type": "application/json" }).end('{"agents":[{"name":"x","path":"agents/x.md","cli":"claude","model":5}],"skills":[]}');
-  });
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  try {
-    const url = new URL(`http://127.0.0.1:${server.address().port}/maker/index.json`);
-    const { groupFromIndex } = await import("../ui/makers/moai.js");
-    await assert.rejects(groupFromIndex(url), (error) => error.message.includes("agents[0].model"));
-  } finally {
-    server.close();
-  }
+test("the group refuses a file outside the project folders, and names the file", () => {
+  const data = index({ files: [...index().files, { path: "src/app.md", text: "x" }] });
+  assert.throws(() => groupFrom(data), /files\[4\]\.path.*src\/app\.md/);
+});
+
+test("the group refuses a repeated file path", () => {
+  const data = index({ files: [...index().files, { path: RUN, text: "again" }] });
+  assert.throws(() => groupFrom(data), /files\[4\]\.path.*repeats/);
+});
+
+test("the group refuses a file entry without text", () => {
+  const data = index({ files: [{ path: RUN }] });
+  assert.throws(() => groupFrom(data), /files\[0\]\.text/);
+});
+
+test("a skill folder must hold files of the index, and a path outside .claude/skills is refused", () => {
+  assert.throws(() => groupFrom(index({ skills: ["skills/moai-run"] })), /skills\[0\]/);
+});
+
+test("the group declares the moai identity, the claude-only CLI, the home variable, the bin path and the project folders", () => {
+  const group = groupFrom(index());
+  assert.equal(group.id, "moai");
+  assert.equal(group.name, "moai");
+  assert.equal(group.plugin, "plugin");
+  assert.deepEqual(group.clis, ["claude"]);
+  assert.deepEqual(group.variables, { MOAI_HOME: "{home}/.moai" });
+  assert.deepEqual(group.path, ["bin"]);
+  assert.deepEqual(group.folders, [".moai/", ".claude/"]);
+  assert.equal(group.rules.length, 1);
+  assert.equal(JSON.stringify(group).includes('"port"'), false);
+});
+
+test("the group refuses an agent model that is not a non-empty string, and names the field", () => {
+  const data = index({ agents: [{ name: "x", path: MANAGER_SPEC, cli: "claude", model: 5 }] });
+  assert.throws(() => groupFrom(data), /agents\[0\]\.model/);
 });

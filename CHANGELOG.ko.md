@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- M22: release build가 data module `maker/index.js`를 써요. 이 module은 moai agent(`.claude/agents/moai/`, `model:` 줄 제거), skill 폴더(`.claude/skills/moai*/`), 그리고 그 파일 모두의 `files`를 담아요. 각 `files` 항목은 프로젝트 경로와 교정한 text를 가져요. `group()`은 module을 import해서 `files`를 반환해요. `folders`는 `.moai/`와 `.claude/`를 나열하고, agent `path`는 `files`의 항목 하나를 가리켜요. 테스트: `test/group.test.mjs`(9개), `test/release-build.test.mjs`(18개). Red: module에 `groupFrom`이 없었고 group이 `files`를 반환하지 않았어요.
 - M14: surface page가 각 SPEC의 `spec.md`를 읽고 선언된 program `spec-audit`(`moai spec audit --json --base-dir .`)을 실행해서, SPEC마다 행 하나와 MUST-FIX 조치를 보여 줘요(`ui/spec-detail-model.js`). 행의 오류는 `showError`로 보내요. 테스트: `test/spec-detail.test.mjs`(6개). Red: model이 없었어요.
 - M20: release 빌드가 검증된 바이너리 release 파일의 LICENSE를 `bin/moai.LICENSE`로, 있으면 NOTICE를 `bin/moai.NOTICE`로 복사해요. LICENSE가 없는 release 파일은 거부해요. 출처는 README에 적어요. 테스트: `test/release-build.test.mjs`.
 - M21: lane model `ui/session-lane.js`가 moai 기록을 기록의 session pid가 foreground process인 moai tab에 배정해요. `.moai/state/active-sessions.json`을 읽어요. Entry나 tab이 없는 기록은 배정되지 않은 행으로 남겨요. 테스트: `test/session-lane.test.mjs`. 페이지에는 연결하지 않았어요(M11).

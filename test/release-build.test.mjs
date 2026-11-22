@@ -9,9 +9,14 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { createServer } from "node:http";
 import { buildRelease } from "../scripts/build-release.mjs";
-import { groupFromIndex } from "../ui/makers/moai.js";
+import { pathToFileURL } from "node:url";
+import { groupFrom } from "../ui/makers/moai.js";
+
+// Imports the data module that the release build wrote into out/maker/index.js.
+async function indexOf(out) {
+  return import(pathToFileURL(join(out, "maker", "index.js")).href);
+}
 
 const VERSION = "v3.1.2";
 
@@ -61,19 +66,31 @@ function withBuild(run) {
   }
 }
 
-test("the build writes the moai agents and moai skills into maker/index.json, and no other agent or skill", () => {
-  withBuild(({ releaseFile, sha256, binary, out }) => {
+test("the build writes the moai agents and moai skills into maker/index.js, and no other agent or skill", async () => {
+  await withBuildAsync(async ({ releaseFile, sha256, binary, out }) => {
     buildRelease({ releaseFile, sha256, version: VERSION, out, binary });
-    const index = JSON.parse(readFileSync(join(out, "maker", "index.json"), "utf8"));
+    const index = await indexOf(out);
     assert.deepEqual(index.agents, [
-      { name: "manager-develop", path: "agents/moai/manager-develop.md", cli: "claude" },
-      { name: "manager-spec", path: "agents/moai/manager-spec.md", cli: "claude", model: "opus" },
+      { name: "manager-develop", path: ".claude/agents/moai/manager-develop.md", cli: "claude" },
+      { name: "manager-spec", path: ".claude/agents/moai/manager-spec.md", cli: "claude", model: "opus" },
     ]);
-    assert.deepEqual(index.skills, ["skills/moai-run"]);
-    assert.ok(existsSync(join(out, "maker", "agents", "moai", "manager-spec.md")));
-    assert.ok(existsSync(join(out, "maker", "skills", "moai-run", "extra.md")));
-    assert.ok(!existsSync(join(out, "maker", "agents", "harness")));
-    assert.ok(!existsSync(join(out, "maker", "skills", "hns-lsel")));
+    assert.deepEqual(index.skills, [".claude/skills/moai-run"]);
+    const paths = index.files.map((file) => file.path);
+    assert.ok(paths.includes(".claude/skills/moai-run/extra.md"));
+    assert.ok(!paths.some((path) => path.includes("harness")));
+    assert.ok(!paths.some((path) => path.includes("hns-lsel")));
+  });
+});
+
+test("the files of maker/index.js hold the corrected text of each moai agent and skill file, with the project paths", async () => {
+  await withBuildAsync(async ({ releaseFile, sha256, binary, out }) => {
+    buildRelease({ releaseFile, sha256, version: VERSION, out, binary });
+    const { files } = await indexOf(out);
+    const spec = files.find((file) => file.path === ".claude/agents/moai/manager-spec.md");
+    assert.equal(spec.text, "---\nname: manager-spec\ndescription: SPEC builder\n---\nSPEC body\n");
+    assert.ok(files.every((file) => file.path.startsWith(".claude/") && !file.path.includes("..")));
+    assert.ok(!existsSync(join(out, "maker", "agents")), "no copied agent folder");
+    assert.ok(!existsSync(join(out, "maker", "skills")), "no copied skill folder");
   });
 });
 
@@ -152,37 +169,23 @@ test("the fallback of a hook command, which runs when its script is missing, wri
   });
 });
 
-test("the model of an agent definition moves to its index entry, and the copied definition has no model line", () => {
-  withBuild(({ releaseFile, sha256, binary, out }) => {
+test("the model of an agent definition moves to its index entry, and the file text has no model line", async () => {
+  await withBuildAsync(async ({ releaseFile, sha256, binary, out }) => {
     buildRelease({ releaseFile, sha256, version: VERSION, out, binary });
-    const copied = readFileSync(join(out, "maker", "agents", "moai", "manager-spec.md"), "utf8");
-    assert.equal(copied, "---\nname: manager-spec\ndescription: SPEC builder\n---\nSPEC body\n");
-    const develop = JSON.parse(readFileSync(join(out, "maker", "index.json"), "utf8")).agents[0];
-    assert.equal(develop.model, undefined, "an agent without a model has no model key");
+    const index = await indexOf(out);
+    assert.equal(index.agents[0].model, undefined, "an agent without a model has no model key");
+    assert.equal(index.files.find((file) => file.path === ".claude/agents/moai/manager-spec.md").text.includes("model:"), false);
   });
 });
 
-test("the built maker index is accepted by the group module that reads it", async () => {
+test("the built data module is accepted by the group function that reads it", async () => {
   await withBuildAsync(async ({ releaseFile, sha256, binary, out }) => {
     buildRelease({ releaseFile, sha256, version: VERSION, out, binary });
-    const server = createServer((request, response) => {
-      const file = join(out, "maker", decodeURIComponent(new URL(request.url, "http://127.0.0.1").pathname));
-      if (!existsSync(file)) {
-        response.writeHead(404).end();
-        return;
-      }
-      response.writeHead(200, { "content-type": file.endsWith(".json") ? "application/json" : "text/plain" }).end(readFileSync(file));
-    });
-    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-    try {
-      const url = new URL(`http://127.0.0.1:${server.address().port}/index.json`);
-      const group = await groupFromIndex(url);
-      assert.deepEqual(group.agents.map((agent) => agent.path), ["agents/moai/manager-develop.md", "agents/moai/manager-spec.md"]);
-      assert.deepEqual(group.skills, ["skills/moai-run"]);
-      assert.equal(group.agents[1].model, "opus");
-    } finally {
-      server.close();
-    }
+    const group = groupFrom(await indexOf(out));
+    assert.deepEqual(group.agents.map((agent) => agent.path), [".claude/agents/moai/manager-develop.md", ".claude/agents/moai/manager-spec.md"]);
+    assert.deepEqual(group.skills, [".claude/skills/moai-run"]);
+    assert.equal(group.agents[1].model, "opus");
+    assert.ok(group.files.length > 0);
   });
 });
 

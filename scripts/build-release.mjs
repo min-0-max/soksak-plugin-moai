@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Builds the release folders of the moai plugin from the moai-adk release pinned in release/upstream.json:
-//   maker/index.json      the moai agents (.claude/agents/moai/*.md, with the model of each definition) and the moai skills (.claude/skills/moai*/ with SKILL.md)
-//   maker/agents, maker/skills   the files that the index names, without the model line of each agent
+//   maker/index.js        the data module: the moai agents (.claude/agents/moai/*.md, with the model of each definition), the moai skill folders
+//                         (.claude/skills/moai*/ with SKILL.md) and every file of them with its project path and corrected text (no model line)
 //   maker/settings.json   the settings of the release that are not hook registrations (the account settings)
 //   maker/seed/.moai      the release .moai folder with its templates unrendered (the page renders them with the project values)
 //   plugin/hooks/hooks.json      the hook registrations, with the scripts under ${CLAUDE_PLUGIN_ROOT}/hooks/moai/
@@ -118,29 +118,35 @@ export function buildRelease({ releaseFile, sha256, version, out, binary }) {
 
     rmSync(join(out, "maker"), { recursive: true, force: true });
     rmSync(join(out, "plugin"), { recursive: true, force: true });
+    const files = [];
+    mkdirSync(join(out, "maker"), { recursive: true });
 
-    // agents: .claude/agents/moai/*.md
+    // agents: .claude/agents/moai/*.md, written at their upstream paths with the model line removed
     const agentSource = join(claude, "agents", "moai");
-    const agentDest = join(out, "maker", "agents", "moai");
-    mkdirSync(agentDest, { recursive: true });
     const agents = readdirSync(agentSource)
       .filter((file) => file.endsWith(".md"))
       .sort()
       .map((file) => {
         const text = readFileSync(join(agentSource, file), "utf8");
         const { name, model } = frontmatterFields(`agents/moai/${file}`, text);
-        writeFileSync(join(agentDest, file), withoutModel(text));
-        const path = `agents/moai/${file}`;
+        const path = `.claude/agents/moai/${file}`;
+        files.push({ path, text: withoutModel(text) });
         return model === undefined ? { name, path, cli: "claude" } : { name, path, cli: "claude", model };
       });
 
-    // skills: .claude/skills/moai*/ that hold a SKILL.md
+    // skills: .claude/skills/moai*/ that hold a SKILL.md; every file of each folder is an entry of files
     const skillSource = join(claude, "skills");
     const skills = readdirSync(skillSource)
       .filter((name) => name.startsWith("moai") && existsSync(join(skillSource, name, "SKILL.md")))
       .sort();
-    for (const name of skills) cpSync(join(skillSource, name), join(out, "maker", "skills", name), { recursive: true });
-    writeFileSync(join(out, "maker", "index.json"), `${JSON.stringify({ agents, skills: skills.map((name) => `skills/${name}`) }, null, 2)}\n`);
+    for (const name of skills) {
+      for (const file of listFiles(join(skillSource, name))) {
+        files.push({ path: `.claude/skills/${name}/${file}`, text: readText(join(skillSource, name, file)) });
+      }
+    }
+    const folders = skills.map((name) => `.claude/skills/${name}`);
+    // The data module holds the agents, the skill folders and every file with its project path (ui/makers/moai.js reads it through the group).
+    writeFileSync(join(out, "maker", "index.js"), indexModule({ agents, skills: folders, files }));
 
     // settings: the registrations go to plugin/hooks/hooks.json, the rest to maker/settings.json
     const settings = JSON.parse(readFileSync(join(claude, "settings.json"), "utf8"));
@@ -176,6 +182,16 @@ function listFiles(folder, prefix = "") {
     const path = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
     return entry.isDirectory() ? listFiles(folder, path) : [path];
   });
+}
+
+// readText returns the UTF-8 text of a file of the release; a file that is not UTF-8 text is an error that names it.
+function readText(file) {
+  return new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(file));
+}
+
+// indexModule returns the source of the data module maker/index.js with the agents, the skill folders and the files.
+export function indexModule({ agents, skills, files }) {
+  return `export const agents = ${JSON.stringify(agents, null, 2)};\n\nexport const skills = ${JSON.stringify(skills, null, 2)};\n\nexport const files = ${JSON.stringify(files, null, 2)};\n`;
 }
 
 function parseArgs(argv) {

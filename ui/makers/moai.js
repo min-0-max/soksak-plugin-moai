@@ -1,26 +1,26 @@
 // The moai group that this plugin contributes to the extension point agents.makers of the agents plugin
 // (agents docs/spec/makers.md). The agents plugin imports this module and calls group() for each connected item.
-// The release build writes maker/index.json next to this plugin's modules folder, with the agents and skills of the
-// corrected copy. group() reads that shipped index through the plugin modules path, so the lists follow the release.
+// The release build writes maker/index.js, a data module with the agents, the skill folders and the files of the
+// corrected copy, each file with its project path. group() imports that module through the plugin modules path.
 // A JSON schema library is not used here, because this module is loaded directly by the page and bundles no library.
 
-const INDEX_URL = new URL("../../maker/index.json", import.meta.url);
+const INDEX_URL = new URL("../../maker/index.js", import.meta.url);
 
-// Reads the shipped index and returns the group object. A failed read or a mismatch of the index rejects with an error
-// that names the index and the field.
+// The project folders that the group creates; every file path lies inside one of them (agents docs/spec/makers.md).
+const FOLDERS = [".moai/", ".claude/"];
+
+// Imports the shipped data module and returns the group object. A missing module or a mismatch rejects with an error
+// that names the module and the field.
 export async function group() {
-  return groupFromIndex(INDEX_URL);
+  return groupFrom(await import(INDEX_URL.href));
 }
 
-// Builds the group from the index at indexUrl. group() passes the shipped index; a test passes a release-shaped fixture.
-export async function groupFromIndex(indexUrl) {
-  const response = await fetch(indexUrl);
-  if (!response.ok) {
-    throw new Error(`${indexUrl}: the index is not readable (HTTP ${response.status})`);
-  }
-  const index = await response.json();
-  const agents = checkAgents(indexUrl, index);
-  const skills = checkSkills(indexUrl, index);
+// Builds the group from a data module namespace with the members agents, skills and files.
+export function groupFrom(index) {
+  if (!isObject(index)) fail("module", "must export agents, skills and files");
+  const files = checkFiles(index);
+  const agents = checkAgents(index, files);
+  const skills = checkSkills(index);
   return Object.freeze({
     id: "moai",
     name: "moai",
@@ -30,51 +30,58 @@ export async function groupFromIndex(indexUrl) {
     skills,
     variables: Object.freeze({ MOAI_HOME: "{home}/.moai" }),
     path: ["bin"],
-    folders: [".moai/"],
+    folders: [...FOLDERS],
     rules: ["Write the outputs of moai only under `.moai/`."],
+    files,
   });
 }
 
-function fail(indexUrl, field, reason) {
-  throw new Error(`${indexUrl}: ${field} ${reason}`);
+function fail(field, reason) {
+  throw new Error(`maker/index.js: ${field} ${reason}`);
 }
 
-function checkAgents(indexUrl, index) {
-  if (!isObject(index) || !Array.isArray(index.agents)) {
-    fail(indexUrl, "agents", "must be an array");
-  }
+// Each entry holds a project path inside a folder of FOLDERS and the corrected text of the file; a path is unique.
+function checkFiles(index) {
+  if (!Array.isArray(index.files)) fail("files", "must be an array");
+  const seen = new Set();
+  return index.files.map((file, i) => {
+    const field = `files[${i}]`;
+    if (!isObject(file)) fail(field, "must be an object");
+    if (typeof file.path !== "string" || !FOLDERS.some((folder) => file.path.startsWith(folder)) || !hasPlainSegments(file.path)) {
+      fail(`${field}.path`, `${String(file.path)} is not a relative path inside ${FOLDERS.join(" or ")}`);
+    }
+    if (seen.has(file.path)) fail(`${field}.path`, `${file.path} repeats an earlier entry`);
+    seen.add(file.path);
+    if (typeof file.text !== "string") fail(`${field}.text`, "must be a string");
+    return { path: file.path, text: file.text };
+  });
+}
+
+// Each agent path names an entry of files, and the agent model is kept when present (agents applies it to the session).
+function checkAgents(index, files) {
+  if (!Array.isArray(index.agents)) fail("agents", "must be an array");
+  const paths = new Set(files.map((file) => file.path));
   return index.agents.map((agent, i) => {
     const field = `agents[${i}]`;
-    if (!isObject(agent)) {
-      fail(indexUrl, field, "must be an object");
+    if (!isObject(agent)) fail(field, "must be an object");
+    if (typeof agent.name !== "string" || agent.name === "") fail(`${field}.name`, "must be a non-empty string");
+    if (typeof agent.path !== "string" || !paths.has(agent.path)) {
+      fail(`${field}.path`, `${String(agent.path)} names no entry of files`);
     }
-    if (typeof agent.name !== "string" || agent.name === "") {
-      fail(indexUrl, `${field}.name`, "must be a non-empty string");
-    }
-    if (!isRelativeFile(agent.path, "agents/", ".md")) {
-      fail(indexUrl, `${field}.path`, "must be a relative path under agents/ that ends in .md");
-    }
-    if (agent.cli !== "claude") {
-      fail(indexUrl, `${field}.cli`, "must be claude");
-    }
+    if (agent.cli !== "claude") fail(`${field}.cli`, "must be claude");
     if (agent.model !== undefined && (typeof agent.model !== "string" || agent.model === "")) {
-      fail(indexUrl, `${field}.model`, "must be a non-empty string when present");
+      fail(`${field}.model`, "must be a non-empty string when present");
     }
-    // The model of the definition is applied to the session by agents (makers.md, agents item schema), so it is kept when present.
     return agent.model === undefined
       ? { name: agent.name, path: agent.path, cli: agent.cli }
       : { name: agent.name, path: agent.path, cli: agent.cli, model: agent.model };
   });
 }
 
-function checkSkills(indexUrl, index) {
-  if (!Array.isArray(index.skills)) {
-    fail(indexUrl, "skills", "must be an array");
-  }
+function checkSkills(index) {
+  if (!Array.isArray(index.skills)) fail("skills", "must be an array");
   return index.skills.map((skill, i) => {
-    if (!isRelativeFolder(skill, "skills/")) {
-      fail(indexUrl, `skills[${i}]`, "must be a relative folder under skills/");
-    }
+    if (!isRelativeFolder(skill, ".claude/skills/")) fail(`skills[${i}]`, "must be a project folder under .claude/skills/");
     return skill;
   });
 }
@@ -83,15 +90,11 @@ function isObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// A path is relative, has no empty, . or .. segment, stays under the prefix and ends with the suffix.
-function isRelativeFile(value, prefix, suffix) {
-  return typeof value === "string" && value.startsWith(prefix) && value.endsWith(suffix) && hasPlainSegments(value);
-}
-
 function isRelativeFolder(value, prefix) {
   return typeof value === "string" && value.startsWith(prefix) && value.length > prefix.length && hasPlainSegments(value);
 }
 
+// A path is relative, has no empty, . or .. segment and no leading slash.
 function hasPlainSegments(value) {
   return !value.startsWith("/") && value.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..");
 }
