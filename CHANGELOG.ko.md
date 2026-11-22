@@ -4,6 +4,7 @@
 
 - M14: surface page가 각 SPEC의 `spec.md`를 읽고 선언된 program `spec-audit`(`moai spec audit --json --base-dir .`)을 실행해서, SPEC마다 행 하나와 MUST-FIX 조치를 보여 줘요(`ui/spec-detail-model.js`). 행의 오류는 `showError`로 보내요. 테스트: `test/spec-detail.test.mjs`(6개). Red: model이 없었어요.
 - M20: release 빌드가 검증된 바이너리 release 파일의 LICENSE를 `bin/moai.LICENSE`로, 있으면 NOTICE를 `bin/moai.NOTICE`로 복사해요. LICENSE가 없는 release 파일은 거부해요. 출처는 README에 적어요. 테스트: `test/release-build.test.mjs`.
+- M21: lane model `ui/session-lane.js`가 moai 기록을 기록의 session pid가 foreground process인 moai tab에 배정해요. `.moai/state/active-sessions.json`을 읽어요. Entry나 tab이 없는 기록은 배정되지 않은 행으로 남겨요. 테스트: `test/session-lane.test.mjs`. 페이지에는 연결하지 않았어요(M11).
 - M11, M12: 보류 원인은 moai 기록의 `<session>`이에요. 어떤 계약도 core session에 대응시키지 않아요. Core F1062-7이 tab의 session을 `params.session`으로 알려 줘서, 잇기는 기록의 식별자를 기다려요.
 - M11, M12: factory와 monitor 섹션이 `.moai/state/todo`, `goal`, `verify`의 기록을 파일 이름으로 보여 줘요. core.grid의 moai tab 수도 함께요. 기록을 tab에 잇는 lane은 계약을 기다려요(M11, M12). 페이지는 존재하는 moai 폴더 집합을 watch해요(M19). 테스트: `test/state-records.test.mjs`.
 - M10: overview 섹션이 `core.grid`의 moai tab(moai group agent의 params.role)을 program 상태와 마지막 감사의 MUST-FIX 합계와 함께 보여 줘요. `ui/moai-tabs.js`와 `test/moai-tabs.test.mjs`(6개 테스트). Red: module이 없었어요.
