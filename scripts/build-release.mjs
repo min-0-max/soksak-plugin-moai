@@ -75,7 +75,8 @@ function transformHooks(hooks, scripts) {
 }
 
 // buildRelease writes maker/ and plugin/ under out from the release file of the pinned release.
-export function buildRelease({ releaseFile, sha256, out }) {
+export function buildRelease({ releaseFile, sha256, version, out }) {
+  if (typeof version !== "string" || version === "") throw new Error("buildRelease requires the release version");
   const digest = createHash("sha256").update(readFileSync(releaseFile)).digest("hex");
   if (digest !== sha256) throw new Error(`release file sha256 ${digest} does not match the pinned ${sha256}: ${releaseFile}`);
 
@@ -131,9 +132,21 @@ export function buildRelease({ releaseFile, sha256, out }) {
     const seedSource = join(work, top[0], "internal", "template", "templates", ".moai");
     if (!existsSync(seedSource)) throw new Error("release has no .moai template folder: internal/template/templates/.moai");
     cpSync(seedSource, join(out, "maker", "seed", ".moai"), { recursive: true });
+    // The page reads the seed through the plugin modules path, which lists no folder, so the build writes the file list
+    // (relative to .moai, templates with their suffix) and the release version that the page writes into Version.
+    const seedFiles = listFiles(seedSource).sort();
+    writeFileSync(join(out, "maker", "seed", "index.json"), `${JSON.stringify({ version, files: seedFiles }, null, 2)}\n`);
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
+}
+
+// Lists the files under folder as paths relative to it, with a slash between the parts.
+function listFiles(folder, prefix = "") {
+  return readdirSync(join(folder, prefix), { withFileTypes: true }).flatMap((entry) => {
+    const path = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+    return entry.isDirectory() ? listFiles(folder, path) : [path];
+  });
 }
 
 function parseArgs(argv) {
@@ -156,7 +169,7 @@ async function main(argv) {
     releaseFile = join(folder, basename(pin.url));
     writeFileSync(releaseFile, Buffer.from(await response.arrayBuffer()));
   }
-  buildRelease({ releaseFile, sha256: pin.sha256, out: args.out ?? ROOT });
+  buildRelease({ releaseFile, sha256: pin.sha256, version: pin.tag, out: args.out ?? ROOT });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

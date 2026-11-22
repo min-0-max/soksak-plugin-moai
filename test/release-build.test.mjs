@@ -13,6 +13,8 @@ import { createServer } from "node:http";
 import { buildRelease } from "../scripts/build-release.mjs";
 import { groupFromIndex } from "../ui/makers/moai.js";
 
+const VERSION = "v3.1.2";
+
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtureParent = join(here, "fixtures", "upstream-release");
 
@@ -44,7 +46,7 @@ function withBuild(run) {
 
 test("the build writes the moai agents and moai skills into maker/index.json, and no other agent or skill", () => {
   withBuild(({ releaseFile, sha256, out }) => {
-    buildRelease({ releaseFile, sha256, out });
+    buildRelease({ releaseFile, sha256, version: VERSION, out });
     const index = JSON.parse(readFileSync(join(out, "maker", "index.json"), "utf8"));
     assert.deepEqual(index.agents, [
       { name: "manager-develop", path: "agents/moai/manager-develop.md", cli: "claude" },
@@ -60,7 +62,7 @@ test("the build writes the moai agents and moai skills into maker/index.json, an
 
 test("the hook registrations move to plugin/hooks/hooks.json under CLAUDE_PLUGIN_ROOT, with the scripts they run", () => {
   withBuild(({ releaseFile, sha256, out }) => {
-    buildRelease({ releaseFile, sha256, out });
+    buildRelease({ releaseFile, sha256, version: VERSION, out });
     const hooks = JSON.parse(readFileSync(join(out, "plugin", "hooks", "hooks.json"), "utf8")).hooks;
     assert.equal(hooks.SessionStart[0].hooks[0].args.at(-1), "${CLAUDE_PLUGIN_ROOT}/hooks/moai/handle-start.sh");
     assert.equal(hooks.PreToolUse[0].hooks[0].args.at(-1), "${CLAUDE_PLUGIN_ROOT}/hooks/moai/handle-start.sh");
@@ -72,7 +74,7 @@ test("the hook registrations move to plugin/hooks/hooks.json under CLAUDE_PLUGIN
 
 test("the non-hook settings go to maker/settings.json, and the hooks do not stay in them", () => {
   withBuild(({ releaseFile, sha256, out }) => {
-    buildRelease({ releaseFile, sha256, out });
+    buildRelease({ releaseFile, sha256, version: VERSION, out });
     const settings = JSON.parse(readFileSync(join(out, "maker", "settings.json"), "utf8"));
     assert.equal(settings.hooks, undefined);
     assert.deepEqual(settings.env, { ENABLE_TOOL_SEARCH: "1" });
@@ -82,7 +84,7 @@ test("the non-hook settings go to maker/settings.json, and the hooks do not stay
 
 test("a release file whose sha256 differs from the pin is refused before anything is extracted", () => {
   withBuild(({ releaseFile, out }) => {
-    assert.throws(() => buildRelease({ releaseFile, sha256: "0".repeat(64), out }), /sha256 .* does not match/);
+    assert.throws(() => buildRelease({ releaseFile, sha256: "0".repeat(64), version: VERSION, out }), /sha256 .* does not match/);
     assert.ok(!existsSync(join(out, "maker")));
   });
 });
@@ -97,7 +99,7 @@ test("a hook that runs a script outside .claude/hooks/moai is an error that name
     }));
     execFileSync("tar", ["-czf", join(work, "bad.tar.gz"), "-C", join(work, "src"), "moai-adk-fixture"]);
     const sha256 = createHash("sha256").update(readFileSync(join(work, "bad.tar.gz"))).digest("hex");
-    assert.throws(() => buildRelease({ releaseFile: join(work, "bad.tar.gz"), sha256, out }), /\/usr\/local\/bin\/other\.sh/);
+    assert.throws(() => buildRelease({ releaseFile: join(work, "bad.tar.gz"), sha256, version: VERSION, out }), /\/usr\/local\/bin\/other\.sh/);
   });
 });
 
@@ -109,13 +111,13 @@ test("an agent without a name in its frontmatter is an error that names the file
     writeFileSync(join(src, "manager-spec.md"), "---\ndescription: no name\n---\n");
     execFileSync("tar", ["-czf", join(work, "bad.tar.gz"), "-C", join(work, "src"), "moai-adk-fixture"]);
     const sha256 = createHash("sha256").update(readFileSync(join(work, "bad.tar.gz"))).digest("hex");
-    assert.throws(() => buildRelease({ releaseFile: join(work, "bad.tar.gz"), sha256, out }), /manager-spec\.md: frontmatter name/);
+    assert.throws(() => buildRelease({ releaseFile: join(work, "bad.tar.gz"), sha256, version: VERSION, out }), /manager-spec\.md: frontmatter name/);
   });
 });
 
 test("the fallback of a hook command, which runs when its script is missing, writes its log into the project folder", () => {
   withBuild(({ releaseFile, sha256, out, work }) => {
-    buildRelease({ releaseFile, sha256, out });
+    buildRelease({ releaseFile, sha256, version: VERSION, out });
     const hooks = JSON.parse(readFileSync(join(out, "plugin", "hooks", "hooks.json"), "utf8")).hooks;
     const hook = hooks.SessionStart[0].hooks[0];
     assert.match(hook.args[1], /d="\$\{CLAUDE_PROJECT_DIR\}"/);
@@ -135,7 +137,7 @@ test("the fallback of a hook command, which runs when its script is missing, wri
 
 test("the model of an agent definition moves to its index entry, and the copied definition has no model line", () => {
   withBuild(({ releaseFile, sha256, out }) => {
-    buildRelease({ releaseFile, sha256, out });
+    buildRelease({ releaseFile, sha256, version: VERSION, out });
     const copied = readFileSync(join(out, "maker", "agents", "moai", "manager-spec.md"), "utf8");
     assert.equal(copied, "---\nname: manager-spec\ndescription: SPEC builder\n---\nSPEC body\n");
     const develop = JSON.parse(readFileSync(join(out, "maker", "index.json"), "utf8")).agents[0];
@@ -145,7 +147,7 @@ test("the model of an agent definition moves to its index entry, and the copied 
 
 test("the built maker index is accepted by the group module that reads it", async () => {
   await withBuildAsync(async ({ releaseFile, sha256, out }) => {
-    buildRelease({ releaseFile, sha256, out });
+    buildRelease({ releaseFile, sha256, version: VERSION, out });
     const server = createServer((request, response) => {
       const file = join(out, "maker", decodeURIComponent(new URL(request.url, "http://127.0.0.1").pathname));
       if (!existsSync(file)) {
@@ -169,8 +171,12 @@ test("the built maker index is accepted by the group module that reads it", asyn
 
 test("the release .moai folder is shipped as maker/seed/.moai, templates unrendered, for the page to render with the project values", () => {
   withBuild(({ releaseFile, sha256, out }) => {
-    buildRelease({ releaseFile, sha256, out });
+    buildRelease({ releaseFile, sha256, version: VERSION, out });
     assert.equal(readFileSync(join(out, "maker", "seed", ".moai", "config", "sections", "user.yaml.tmpl"), "utf8"), 'user:\n  name: "{{.UserName}}"\n');
     assert.equal(readFileSync(join(out, "maker", "seed", ".moai", "README.md"), "utf8"), "# moai project\n");
+    assert.deepEqual(JSON.parse(readFileSync(join(out, "maker", "seed", "index.json"), "utf8")), {
+      version: "v3.1.2",
+      files: ["README.md", "config/sections/user.yaml.tmpl"],
+    });
   });
 });

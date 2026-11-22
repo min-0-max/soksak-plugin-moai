@@ -3,6 +3,7 @@
 [한국어](CHANGELOG.ko.md)
 
 - M2-2a: The seed values and renderer: `ui/seed-model.js` derives the values of the eight `.moai` templates from the project, the git config, the application locale and the init defaults, and renders them. The build ships the release `.moai` folder unrendered as `maker/seed/.moai`.
+- M2-2b: The release build writes `maker/seed/index.json` with the pinned release version and the sorted file list of the seed, because the plugin modules path lists no folder; the page reads it to seed the project. Tests: `test/release-build.test.mjs`.
 - M2-2c: The seed renderer is `@promptctl/go-template-js` 0.12.0, bundled by the vendor build, replacing the local renderer; the eight seed templates render with the same output, and a missing field is still rejected by name. Candidates were checked on npm and their reasons are in `ui/seed-model.js`.
 - M2-2: Held without code. The seed is the release `.moai/` folder, and eight of its files are templates that `init` renders with values the contract does not name. A partial seed would leave the config sections missing, so nothing is written.
 - M2-3: The build moves each agent `model:` into its index entry and removes the line from the copied definition (club.md, measurement C4); the group module validates and returns the model. The build writes index paths as `agents/moai/<file>` and `skills/<folder>`, the form the group checks, and a test passes the built index through the group module.
