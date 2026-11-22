@@ -6,10 +6,11 @@
 //   maker/seed/.moai      the release .moai folder with its templates unrendered (the page renders them with the project values)
 //   plugin/hooks/hooks.json      the hook registrations, with the scripts under ${CLAUDE_PLUGIN_ROOT}/hooks/moai/
 //   plugin/hooks/moai/    the hook scripts that a registration runs
-// The release file sha256 must equal the pin before anything is extracted or written. The build reads no other network address.
+//   bin/moai              the moai binary of the pinned darwin-arm64 asset of the same release (the program `plugin:bin/moai`)
+// The release file and the binary release file must equal their sha256 pins before anything is extracted or written. The build reads no other network address.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -74,11 +75,32 @@ function transformHooks(hooks, scripts) {
   return moved;
 }
 
-// buildRelease writes maker/ and plugin/ under out from the release file of the pinned release.
-export function buildRelease({ releaseFile, sha256, version, out }) {
+// buildBinary writes out/bin/moai from the binary release file of the pinned asset. The binary release file must hold a file named moai at its top.
+// The binary is an executable that the release pins; the build copies it as the binary release file holds it.
+export function buildBinary({ file, sha256, out }) {
+  const digest = createHash("sha256").update(readFileSync(file)).digest("hex");
+  if (digest !== sha256) throw new Error(`binary release file sha256 ${digest} does not match the pinned ${sha256}: ${file}`);
+  const work = mkdtempSync(join(tmpdir(), "moai-binary-"));
+  try {
+    execFileSync("tar", ["-xzf", file, "-C", work]);
+    const source = join(work, "moai");
+    if (!existsSync(source)) throw new Error(`binary release file holds no moai file at its top: ${file}`);
+    rmSync(join(out, "bin"), { recursive: true, force: true });
+    mkdirSync(join(out, "bin"), { recursive: true });
+    copyFileSync(source, join(out, "bin", "moai"));
+    chmodSync(join(out, "bin", "moai"), 0o755);
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+}
+
+// buildRelease writes maker/, plugin/ and bin/ under out from the release file of the pinned release and the pinned binary release file.
+export function buildRelease({ releaseFile, sha256, version, out, binary }) {
   if (typeof version !== "string" || version === "") throw new Error("buildRelease requires the release version");
+  if (binary === undefined) throw new Error("buildRelease requires the binary release file of the pinned asset");
   const digest = createHash("sha256").update(readFileSync(releaseFile)).digest("hex");
   if (digest !== sha256) throw new Error(`release file sha256 ${digest} does not match the pinned ${sha256}: ${releaseFile}`);
+  buildBinary({ file: binary.file, sha256: binary.sha256, out });
 
   const work = mkdtempSync(join(tmpdir(), "moai-release-"));
   try {
@@ -152,7 +174,7 @@ function listFiles(folder, prefix = "") {
 function parseArgs(argv) {
   const args = {};
   for (let i = 0; i < argv.length; i += 2) {
-    if (!argv[i].startsWith("--") || argv[i + 1] === undefined) throw new Error(`usage: build-release.mjs [--release-file <file>] [--out <folder>]`);
+    if (!argv[i].startsWith("--") || argv[i + 1] === undefined) throw new Error(`usage: build-release.mjs [--release-file <file>] [--binary-file <file>] [--out <folder>]`);
     args[argv[i].slice(2)] = argv[i + 1];
   }
   return args;
@@ -169,7 +191,21 @@ async function main(argv) {
     releaseFile = join(folder, basename(pin.url));
     writeFileSync(releaseFile, Buffer.from(await response.arrayBuffer()));
   }
-  buildRelease({ releaseFile, sha256: pin.sha256, version: pin.tag, out: args.out ?? ROOT });
+  let binaryFile = args["binary-file"];
+  if (!binaryFile) {
+    const response = await fetch(pin.binary.url);
+    if (!response.ok) throw new Error(`fetch ${pin.binary.url}: HTTP ${response.status}`);
+    const folder = mkdtempSync(join(tmpdir(), "moai-binary-file-"));
+    binaryFile = join(folder, basename(pin.binary.url));
+    writeFileSync(binaryFile, Buffer.from(await response.arrayBuffer()));
+  }
+  buildRelease({
+    releaseFile,
+    sha256: pin.sha256,
+    version: pin.tag,
+    out: args.out ?? ROOT,
+    binary: { file: binaryFile, sha256: pin.binary.sha256 },
+  });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -12,11 +12,11 @@
   },
   "programs": {
     "config-load": {
-      "program": "moai",
+      "program": "plugin:bin/moai",
       "args": ["doctor", "config", "dump", "--format", "json"]
     },
     "spec-audit": {
-      "program": "moai",
+      "program": "plugin:bin/moai",
       "args": ["spec", "audit", "--json", "--base-dir", "."]
     }
   },
