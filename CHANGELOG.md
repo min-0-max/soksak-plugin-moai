@@ -3,6 +3,7 @@
 [한국어](CHANGELOG.ko.md)
 
 - M2-2a: The seed values and renderer: `ui/seed-model.js` derives the values of the eight `.moai` templates from the project, the git config, the application locale and the init defaults, and renders them. The build ships the release `.moai` folder unrendered as `maker/seed/.moai`.
+- M2-2b: The moai page seeds `.moai/` at each page start through the files sidecar: folders by `createFolder`, missing files by `write` with `expect: null`; existing files are kept and reported; an unsupported locale is refused by name with the supported set. The sidecar release with `createFolder` is held (M2-2d).
 - M2-2b: The seed plan (`ui/seed-plan.js`) decides which seed files a project lacks, renders each with its project path, and builds the files sidecar write request with `expect: null`. The page wiring is held, see M2-2b.
 - M2-2b: The release build writes `maker/seed/index.json` with the pinned release version and the sorted file list of the seed, because the plugin modules path lists no folder; the page reads it to seed the project. Tests: `test/release-build.test.mjs`.
 - M2-2c: The seed renderer is `@promptctl/go-template-js` 0.12.0, bundled by the vendor build, replacing the local renderer; the eight seed templates render with the same output, and a missing field is still rejected by name. Candidates were checked on npm and their reasons are in `ui/seed-model.js`.

@@ -90,7 +90,7 @@ export function gitValues(configText) {
 export function templateValues({ projectName, locale, git, createdAt, version, groupBinPath }) {
   const code = String(locale).toLowerCase().split("-")[0];
   if (!Object.hasOwn(LANGUAGE_NAMES, code)) {
-    throw new Error(`locale ${locale} is not a language that moai names`);
+    throw new Error(`locale ${locale} is not a language moai names; supported: ${Object.keys(LANGUAGE_NAMES).join(", ")}`);
   }
   return {
     ProjectName: projectName,

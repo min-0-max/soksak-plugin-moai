@@ -79,3 +79,10 @@ test("renderTemplate refuses a field that has no value", () => {
 test("renderTemplate applies posixPath, which replaces backslashes with slashes (template/renderer.go:27-29)", () => {
   assert.equal(renderTemplate('exec "{{posixPath .Path}}" run', { Path: "C:\\bin\\moai" }), 'exec "C:/bin/moai" run');
 });
+
+test("templateValues refuses a locale that moai does not name, and names the supported languages", () => {
+  assert.throws(
+    () => templateValues({ projectName: "soksak", locale: "pt", git: gitValues(null), createdAt: "t", version: "v3.1.2", groupBinPath: "$MOAI_HOME/bin/moai" }),
+    /^Error: locale pt is not a language moai names; supported: ko, en, ja, zh, es, fr, de$/,
+  );
+});

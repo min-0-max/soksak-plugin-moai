@@ -57,3 +57,9 @@ export function projectNameOf(root) {
 export function writeRequest(id, path, text) {
   return { operation: "write", id, path, text, bom: false, expect: null };
 }
+
+// createFolderRequest is the files sidecar createFolder of a folder of the project. The sidecar creates the missing parents too,
+// and answers success for a folder that exists, so a repeated request changes nothing.
+export function createFolderRequest(id, path) {
+  return { operation: "createFolder", id, path };
+}

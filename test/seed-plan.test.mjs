@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  createFolderRequest,
   localeOf,
   planSeed,
   projectNameOf,
@@ -59,4 +60,8 @@ test("projectNameOf is the last folder of the project root", () => {
 test("writeRequest creates a new file with expect null, which the files sidecar requires", () => {
   const request = writeRequest("write-1", ".moai/README.md", "# moai project\n");
   assert.deepEqual(request, { operation: "write", id: "write-1", path: ".moai/README.md", text: "# moai project\n", bom: false, expect: null });
+});
+
+test("createFolderRequest names a folder of the project", () => {
+  assert.deepEqual(createFolderRequest("folder-1", ".moai/config"), { operation: "createFolder", id: "folder-1", path: ".moai/config" });
 });
