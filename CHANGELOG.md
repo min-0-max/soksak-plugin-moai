@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- M15-2e: The strict llm section check `ui/llm-section-rules.js` ports `ValidateLLMYAMLSection` over the llm field types, the yaml.v3 decode kinds and the `!!bool` rule of `agent_overrides_consume`, each with its moai-adk line. Tests: `test/llm-section.test.mjs` (7 tests); Red: the module was missing. The vendor entry exports `isMap`, `isScalar` and `isSeq`.
 - M15-2d: Closed without code. The console rules `validatePrefs`, `validateProjectConfig` and `validateProjectNestedConfig` apply to the profile preferences file or repeat the M15-2 sets; the remaining strict llm check is M15-2e.
 - M15-2c: The session default rules join `ui/config-rules.js`: the mode closed set and each backend cell's model and effort, with their session_defaults.go source lines. Tests: `test/config-rules.test.mjs` (15 tests); Red: two tests failed first.
 - M15-2b: The profile, agent override and dynamic token rules join `ui/config-rules.js`: the closed sets of `llm.profile` (legacy max accepted as high) and `llm.agent_overrides`, and the 41 dynamic token paths, each with its moai-adk source line. Tests: `test/config-rules.test.mjs` (13 tests), with the three new rules Red first.
