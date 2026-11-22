@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- M15-2d: 코드 없이 닫았어요. Console 규칙 `validatePrefs`, `validateProjectConfig`, `validateProjectNestedConfig`는 profile preferences 파일에 적용되거나 M15-2 집합을 반복해요. 남은 엄격한 llm 검사는 M15-2e예요.
 - M15-2c: `ui/config-rules.js`에 session 기본값 규칙을 더했어요. Mode closed set과 backend별 cell의 model, effort를 다루고 session_defaults.go 근거 줄을 적어요. Test는 `test/config-rules.test.mjs`(15개)예요. Red는 test 2개가 먼저 실패했어요.
 - M15-2b: `ui/config-rules.js`에 profile, agent override, dynamic token 규칙을 더했어요. `llm.profile`의 closed set(legacy max는 high로 받아들여요)과 `llm.agent_overrides`, dynamic token 41개 경로를 다루고, 각 규칙은 moai-adk 근거 줄을 적어요. Test는 `test/config-rules.test.mjs`(13개)예요. 새 규칙 3개는 Red를 먼저 확인했어요.
 - M15-2: `ui/config-rules.js`의 값 규칙은 quality development mode와 백분율, git_convention convention과 범위, git_strategy merge method, `llm.glm.base_url`을 검사해요. 각 규칙은 moai-adk 근거 줄을 적어요. 잘못된 타입의 값은 오류예요. Test는 `test/config-rules.test.mjs`(9개)예요. Red는 module이 없어서 실패했어요.

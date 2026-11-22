@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- M15-2d: Closed without code. The console rules `validatePrefs`, `validateProjectConfig` and `validateProjectNestedConfig` apply to the profile preferences file or repeat the M15-2 sets; the remaining strict llm check is M15-2e.
 - M15-2c: The session default rules join `ui/config-rules.js`: the mode closed set and each backend cell's model and effort, with their session_defaults.go source lines. Tests: `test/config-rules.test.mjs` (15 tests); Red: two tests failed first.
 - M15-2b: The profile, agent override and dynamic token rules join `ui/config-rules.js`: the closed sets of `llm.profile` (legacy max accepted as high) and `llm.agent_overrides`, and the 41 dynamic token paths, each with its moai-adk source line. Tests: `test/config-rules.test.mjs` (13 tests), with the three new rules Red first.
 - M15-2: The value rules `ui/config-rules.js` check the quality development mode and percentages, the git_convention convention and bounds, the git_strategy merge methods and `llm.glm.base_url`, each with its moai-adk source line. A value of the wrong type is an error. Tests: `test/config-rules.test.mjs` (9 tests); Red: the module was missing.
