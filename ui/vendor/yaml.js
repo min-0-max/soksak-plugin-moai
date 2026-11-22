@@ -6268,5 +6268,6 @@ function parse(src, reviver, options) {
   return doc.toJS(Object.assign({ reviver: _reviver }, options));
 }
 export {
-  parse
+  parse,
+  parseDocument
 };

@@ -11,4 +11,4 @@ make check                                  # 고정된 kit release의 document�
 make pack OUT=<folder>                      # plugin release
 ```
 
-Application은 release를 설치할 때 `plugin.json`을 검증해요. Checklist는 [docs/features.md](docs/features.md)예요.
+Application은 release를 설치할 때 `plugin.json`을 검증해요. Checklist는 [docs/features.md](docs/features.md)예요. Source와 fork 규칙은 [docs/spec/sources.md](docs/spec/sources.md)예요.

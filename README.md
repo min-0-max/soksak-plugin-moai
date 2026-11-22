@@ -11,4 +11,4 @@ make check                                  # document and command checks of the
 make pack OUT=<folder>                      # the plugin release
 ```
 
-The application validates `plugin.json` when it installs the release. The checklist is [docs/features.md](docs/features.md).
+The application validates `plugin.json` when it installs the release. The checklist is [docs/features.md](docs/features.md). The source and fork rule is [docs/spec/sources.md](docs/spec/sources.md).
