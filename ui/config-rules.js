@@ -15,6 +15,9 @@ const RETAINED_AGENTS = [
   "manager-spec", "plan-auditor", "sync-auditor", "manager-develop", "super-advisor", "manager-design", "manager-lead",
   "builder-harness", "e2e-tester", "manager-docs", "manager-git", "manager-todo", "Explore",
 ]; // profile.go:133-147 retainedAgentNames
+const SESSION_MODES = ["default", "custom"]; // session_defaults.go:21-22
+const SESSION_EFFORTS = ["low", "medium", "high", "xhigh"]; // session_defaults.go:175 sessionClaudeEfforts
+const CLAUDE_MODELS = ["opus", "sonnet", "haiku", "fable"]; // session_defaults.go:174 sessionClaudeModels
 // The 41 paths that validation.go:317-383 checks for dynamic tokens. Other string paths are not checked by moai.
 const DYNAMIC_TOKEN_FIELDS = [
   "user.name",
@@ -82,6 +85,20 @@ function dynamicTokenOf(value) {
 }
 
 const valueAt = (object, path) => path.split(".").reduce((node, key) => node?.[key], object);
+
+// sessionModelValid is session_defaults.go:191-199. A Codex model id is any value without whitespace, control characters,
+// quotes or backslashes; the cc and glm backends accept only the Claude slot aliases.
+function sessionModelValid(backend, model) {
+  if (backend !== "codex") return CLAUDE_MODELS.includes(model);
+  return !/["'\\]/.test(model) && !/[\s\p{Cc}]/u.test(model);
+}
+
+// The model message of each backend, session_defaults.go:225-229 (the codex, glm and default branches).
+function sessionModelMessage(backend, model) {
+  if (backend === "codex") return `model ${model} is not a Codex model id`;
+  if (backend === "glm") return `model ${model} is not a GLM slot alias {${CLAUDE_MODELS.join(", ")}}`;
+  return `model ${model} is not in {${CLAUDE_MODELS.join(", ")}}`;
+}
 
 // validateSections returns every rule violation of the sections, in the order of validation.go.
 // `sections` maps a section name to its parsed object, for example { quality: {...}, git_convention: {...} }.
@@ -154,6 +171,28 @@ export function validateSections(sections) {
     const effort = typeof override?.effort === "string" ? override.effort.trim() : "";
     if (effort !== "" && !OVERRIDE_EFFORTS.includes(effort)) {
       errors.push(error(`llm.agent_overrides.${agent}.effort`, `effort ${effort} is not in the valid set {${OVERRIDE_EFFORTS.join(", ")}}`));
+    }
+  }
+
+  // validateSessionDefaults, session_defaults.go:205-240: the mode closed set, then each backend cell (empty values fall back)
+  const sessions = llm.defaults?.sessions ?? {};
+  const mode = typeof sessions.mode === "string" ? sessions.mode.trim() : "";
+  if (mode !== "" && !SESSION_MODES.includes(mode)) {
+    errors.push(error("llm.defaults.sessions.mode", `mode ${sessions.mode} is not in the closed set {default, custom}`));
+  }
+  for (const backend of ["cc", "glm", "codex"]) {
+    for (const role of ["leader", "lane"]) {
+      const cell = sessions[backend]?.[role] ?? {};
+      const prefix = `llm.defaults.sessions.${backend}.${role}`;
+      // trimSessionModel, session_defaults.go:182-184: whitespace and control characters at both ends are removed
+      const model = typeof cell.model === "string" ? cell.model.replace(/^[\s\p{Cc}]+|[\s\p{Cc}]+$/gu, "") : "";
+      if (model !== "" && !sessionModelValid(backend, model)) {
+        errors.push(error(`${prefix}.model`, sessionModelMessage(backend, model)));
+      }
+      const effort = typeof cell.effort === "string" ? cell.effort.trim() : "";
+      if (effort !== "" && !SESSION_EFFORTS.includes(effort)) {
+        errors.push(error(`${prefix}.effort`, `effort ${effort} is not in {${SESSION_EFFORTS.join(", ")}} (max/ultra are never a default)`));
+      }
     }
   }
 

@@ -130,3 +130,30 @@ test("a string value with an unexpanded dynamic token is an error, for each toke
 test("a dynamic token in a path that moai does not check is not an error", () => {
   assert.deepEqual(validateSections({ user: { email: "$NOT_CHECKED" } }), []);
 });
+
+test("llm.defaults.sessions: mode is default or custom, and each cell has a model and an effort of the session vocabulary", () => {
+  const sessions = (cell) => ({ llm: { defaults: { sessions: cell } } });
+  assert.deepEqual(validateSections(sessions({ mode: "custom", cc: { leader: { model: "opus", effort: "xhigh" } } })), []);
+  assert.deepEqual(validateSections(sessions({ mode: "auto" })), [
+    { field: "llm.defaults.sessions.mode", message: "mode auto is not in the closed set {default, custom}" },
+  ]);
+  assert.deepEqual(validateSections(sessions({ cc: { lane: { effort: "max" } } })), [
+    { field: "llm.defaults.sessions.cc.lane.effort", message: "effort max is not in {low, medium, high, xhigh} (max/ultra are never a default)" },
+  ]);
+});
+
+test("llm.defaults.sessions: the model of each backend follows its own set", () => {
+  const with_model = (backend, model) => ({ llm: { defaults: { sessions: { [backend]: { leader: { model } } } } } });
+  assert.deepEqual(validateSections(with_model("cc", "fable")), []);
+  assert.deepEqual(validateSections(with_model("glm", "fable")), []);
+  assert.deepEqual(validateSections(with_model("cc", "gpt-5")), [
+    { field: "llm.defaults.sessions.cc.leader.model", message: "model gpt-5 is not in {opus, sonnet, haiku, fable}" },
+  ]);
+  assert.deepEqual(validateSections(with_model("glm", "gpt-5")), [
+    { field: "llm.defaults.sessions.glm.leader.model", message: "model gpt-5 is not a GLM slot alias {opus, sonnet, haiku, fable}" },
+  ]);
+  assert.deepEqual(validateSections(with_model("codex", "gpt-5.1-codex")), []);
+  assert.deepEqual(validateSections(with_model("codex", 'gpt "x"')), [
+    { field: "llm.defaults.sessions.codex.leader.model", message: 'model gpt "x" is not a Codex model id' },
+  ]);
+});

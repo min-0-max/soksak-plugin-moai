@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- M15-2c: `ui/config-rules.js`에 session 기본값 규칙을 더했어요. Mode closed set과 backend별 cell의 model, effort를 다루고 session_defaults.go 근거 줄을 적어요. Test는 `test/config-rules.test.mjs`(15개)예요. Red는 test 2개가 먼저 실패했어요.
 - M15-2b: `ui/config-rules.js`에 profile, agent override, dynamic token 규칙을 더했어요. `llm.profile`의 closed set(legacy max는 high로 받아들여요)과 `llm.agent_overrides`, dynamic token 41개 경로를 다루고, 각 규칙은 moai-adk 근거 줄을 적어요. Test는 `test/config-rules.test.mjs`(13개)예요. 새 규칙 3개는 Red를 먼저 확인했어요.
 - M15-2: `ui/config-rules.js`의 값 규칙은 quality development mode와 백분율, git_convention convention과 범위, git_strategy merge method, `llm.glm.base_url`을 검사해요. 각 규칙은 moai-adk 근거 줄을 적어요. 잘못된 타입의 값은 오류예요. Test는 `test/config-rules.test.mjs`(9개)예요. Red는 module이 없어서 실패했어요.
 - M15-1: Section 수정 model `ui/section-edit-model.js`는 포함된 YAML 라이브러리로 moai section 파일의 값 하나를 바꿔요(`parseDocument`를 써서 다른 key와 주석을 유지해요). files sidecar `write` 요청은 `expect`와 응답 version으로 만들어요. Vendor 항목은 `parseDocument`를 export하고 `ui/vendor/yaml.js`를 다시 빌드했어요. Test는 `test/section-edit.test.mjs`예요. Red는 model 파일이 없어서 실패했어요. M2는 fork 대신 고정된 upstream release를 기다리고, fork 규칙은 `docs/spec/sources.ko.md`에 기록했어요.
