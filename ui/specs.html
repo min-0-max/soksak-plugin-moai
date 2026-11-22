@@ -6,8 +6,21 @@
   <style>html, body { height: 100%; margin: 0; overflow: hidden; } body { color: var(--fg); font: 12px/1.4 var(--font); padding: 0 16px; } ul { margin: 0; padding: 0; list-style: none; }</style>
 </head>
 <body>
-  <ul id="specs"></ul>
-  <ul id="detail"></ul>
+  <nav>
+    <button type="button" data-screen="screen-specs">SPECs</button>
+    <button type="button" data-screen="screen-overview">Overview</button>
+    <button type="button" data-screen="screen-settings">Settings</button>
+  </nav>
+  <section id="screen-specs">
+    <ul id="specs"></ul>
+    <ul id="detail"></ul>
+    <p id="seed"></p>
+  </section>
+  <section id="screen-overview" hidden>
+    <p id="overview-summary"></p>
+    <ul id="overview-tabs"></ul>
+  </section>
+  <section id="screen-settings" hidden>
   <form id="settings">
     <select id="settings-section" aria-label="Section"></select>
     <input id="settings-key" aria-label="Key" placeholder="quality.test_coverage_target" autocomplete="off">
@@ -15,7 +28,7 @@
     <button id="settings-save" type="submit">Save</button>
     <p id="settings-status"></p>
   </form>
-  <p id="seed"></p>
+  </section>
   <script type="module" src="./specs.js"></script>
 </body>
 </html>

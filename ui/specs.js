@@ -6,6 +6,8 @@ import { programStdout } from "./program-reply.js";
 import { firstWatchPath, listSpecsRequest, nextWatchPath, specIds, watchSpecsRequest } from "./specs-model.js";
 import { specDetailRows } from "./spec-detail-model.js";
 import { checkSectionText, CHECKED_SECTIONS, parseSettingValue } from "./section-check.js";
+import { group } from "./makers/moai.js";
+import { moaiTabs } from "./moai-tabs.js";
 import { saveSection } from "./section-save.js";
 import { readSpecRequest } from "./spec-frontmatter.js";
 
@@ -33,6 +35,13 @@ const settingsKey = document.getElementById("settings-key");
 const settingsValue = document.getElementById("settings-value");
 const settingsSave = document.getElementById("settings-save");
 const settingsStatus = document.getElementById("settings-status");
+const overviewSummary = document.getElementById("overview-summary");
+const overviewTabs = document.getElementById("overview-tabs");
+// The agent names of the moai group, read once from the shipped index, and the last core.grid value of the tabs.
+let agentNames = null;
+let lastGrid = null;
+// The MUST-FIX findings of the last audit run, or null before the first run.
+let mustFixTotal = null;
 // Requests of the seed wait for their reply by id; the watch and list replies keep their own handlers.
 const pending = new Map();
 let counter = 0;
@@ -100,6 +109,8 @@ async function refreshDetail(folders) {
   const auditText = programStdout(SPEC_AUDIT_PROGRAM, await bridge.runtime.program.run(SPEC_AUDIT_PROGRAM, []));
   if (generation !== detailGeneration) return;
   const rows = specDetailRows(folders, documents, auditText);
+  mustFixTotal = rows.reduce((total, row) => total + row.mustFix.length, 0);
+  renderOverview();
   detail.replaceChildren(...rows.map((row) => {
     const item = document.createElement("li");
     item.textContent = [row.id, row.title, row.status].filter((text) => text !== "").join("  ");
@@ -115,6 +126,21 @@ async function refreshDetail(folders) {
   for (const row of rows) {
     if (row.error !== null) showError(`moai spec ${row.folder}`, new Error(row.error));
   }
+}
+
+// Shows the moai tabs of core.grid with their program state, and the MUST-FIX findings of the last audit. Each change of core.grid
+// (watched as a core status) and each audit run renders again; nothing renders on a timer.
+function renderOverview() {
+  if (agentNames === null || lastGrid === null) return;
+  const rows = moaiTabs(lastGrid, agentNames);
+  const live = rows.filter((row) => row.live).length;
+  const findings = mustFixTotal === null ? "not audited yet" : `${mustFixTotal}`;
+  overviewSummary.textContent = `moai tabs: ${rows.length}, live: ${live}, MUST-FIX findings: ${findings}`;
+  overviewTabs.replaceChildren(...rows.map((row) => {
+    const item = document.createElement("li");
+    item.textContent = `${row.title} (${row.role}): ${row.state ?? "no program state"}`;
+    return item;
+  }));
 }
 
 function render(ids) {
@@ -227,7 +253,31 @@ settingsForm.addEventListener("submit", (event) => {
   saveSetting().catch((error) => showError("moai settings", error));
 });
 
+// The screen buttons show one screen; the SPEC screen is the first one.
+for (const button of document.querySelectorAll("nav button[data-screen]")) {
+  button.addEventListener("click", () => {
+    for (const screen of document.querySelectorAll("section[id^='screen-']")) {
+      screen.hidden = screen.id !== button.dataset.screen;
+    }
+  });
+}
+
 async function start() {
+  // core.grid is a core status: each change of the tabs reports the value again, and the overview renders it.
+  bridge.runtime.status.watch("core.grid", (grid) => {
+    lastGrid = grid;
+    try {
+      renderOverview();
+    } catch (error) {
+      showError("moai overview", error);
+    }
+  });
+  group()
+    .then((moai) => {
+      agentNames = moai.agents.map((agent) => agent.name);
+      renderOverview();
+    })
+    .catch((error) => showError("moai overview", error));
   await sidecar.on(surface, (body) => onMessage(body));
   await sidecar.onFailure(surface, (failure) => showError("moai specs", new Error(`files sidecar failed: ${failure}`)));
   requestWatch(firstWatchPath());
