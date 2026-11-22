@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- M24: `plugin.json` names the agents plugin by its package `@soksak/plugin-agents`, so installing moai installs agents.
 - M23: The workflows `ci.yml` and `release.yml` check each push and release with `make pack`; the held items state their cause and retry condition.
 - M22: The release build writes `maker/index.js`, a data module with the moai agents (`.claude/agents/moai/`, model line removed), the skill folders (`.claude/skills/moai*/`) and `files`, which holds each file of them with its project path and corrected text. `group()` imports the module and returns `files`; `folders` lists `.moai/` and `.claude/`, and each agent path names an entry of `files`. Tests: `test/group.test.mjs` (9 tests), `test/release-build.test.mjs` (18 tests); Red: the module had no `groupFrom` and the group returned no `files`.
 - M14: The surface page reads each SPEC `spec.md` and runs the declared program `spec-audit` (`moai spec audit --json --base-dir .`), and shows one row per SPEC with its MUST-FIX remediations (`ui/spec-detail-model.js`). Row errors go through `showError`. Tests: `test/spec-detail.test.mjs` (6 tests); Red: the model was missing.

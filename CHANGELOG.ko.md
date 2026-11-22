@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- M24: `plugin.json`이 agents plugin을 package `@soksak/plugin-agents`로 이름 지어서 moai를 설치하면 agents가 설치된다.
 - M23: Workflow `ci.yml`과 `release.yml`이 push마다 검사하고 `make pack`으로 release한다. 보류 항목은 원인과 재시도 조건을 적는다.
 - M22: release build가 data module `maker/index.js`를 써요. 이 module은 moai agent(`.claude/agents/moai/`, `model:` 줄 제거), skill 폴더(`.claude/skills/moai*/`), 그리고 그 파일 모두의 `files`를 담아요. 각 `files` 항목은 프로젝트 경로와 교정한 text를 가져요. `group()`은 module을 import해서 `files`를 반환해요. `folders`는 `.moai/`와 `.claude/`를 나열하고, agent `path`는 `files`의 항목 하나를 가리켜요. 테스트: `test/group.test.mjs`(9개), `test/release-build.test.mjs`(18개). Red: module에 `groupFrom`이 없었고 group이 `files`를 반환하지 않았어요.
 - M14: surface page가 각 SPEC의 `spec.md`를 읽고 선언된 program `spec-audit`(`moai spec audit --json --base-dir .`)을 실행해서, SPEC마다 행 하나와 MUST-FIX 조치를 보여 줘요(`ui/spec-detail-model.js`). 행의 오류는 `showError`로 보내요. 테스트: `test/spec-detail.test.mjs`(6개). Red: model이 없었어요.
