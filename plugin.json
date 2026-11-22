@@ -25,7 +25,7 @@
       {
         "id": "moai",
         "name": "moai",
-        "range": "^0.1.0",
+        "range": "^0.0.1",
         "module": "ui/makers/moai.js"
       }
     ]
