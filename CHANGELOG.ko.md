@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- M26: `plugin.json`이 agents plugin `>=0.0.1`을 요구해서 agents 0.0.2 이후 version과 함께 설치된다. version은 0.0.3이다.
 - M25: version은 0.0.2이고, M24를 release한다.
 - M24: `plugin.json`이 agents plugin을 package `@soksak/plugin-agents`로 이름 지어서 moai를 설치하면 agents가 설치된다.
 - M23: Workflow `ci.yml`과 `release.yml`이 push마다 검사하고 `make pack`으로 release한다. 보류 항목은 원인과 재시도 조건을 적는다.

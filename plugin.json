@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@soksak/plugin-agents": "^0.0.1",
+    "@soksak/plugin-agents": ">=0.0.1",
     "@soksak/sidecar-files": ">=0.0.12"
   },
   "contributes": {
