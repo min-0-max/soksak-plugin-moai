@@ -1,19 +1,11 @@
 // The moai group that this plugin contributes to the extension point agents.makers of the agents plugin
-// (agents docs/spec/makers.md). The agents plugin imports this module and calls group() for each connected item.
-// The release build writes maker/index.js, a data module with the agents, the skill folders and the files of the
-// corrected copy, each file with its project path. group() imports that module through the plugin modules path.
-// A JSON schema library is not used here, because this module is loaded directly by the page and bundles no library.
-
-const INDEX_URL = new URL("../../maker/index.js", import.meta.url);
+// (agents docs/spec/makers.md). The release build bundles this module with the data module maker/index.js into
+// maker/moai.js, one file with no import, because core grants a provider page only the contributed module file
+// (scripts/build-release.mjs). The agents plugin imports that file and calls group() for each connected item.
+// A JSON schema library is not used here, because the bundle holds only this module and the data.
 
 // The project folders that the group creates; every file path lies inside one of them (agents docs/spec/makers.md).
 const FOLDERS = [".moai/", ".claude/"];
-
-// Imports the shipped data module and returns the group object. A missing module or a mismatch rejects with an error
-// that names the module and the field.
-export async function group() {
-  return groupFrom(await import(INDEX_URL.href));
-}
 
 // Builds the group from a data module namespace with the members agents, skills and files.
 export function groupFrom(index) {

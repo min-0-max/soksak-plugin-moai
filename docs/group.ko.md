@@ -18,6 +18,7 @@ Release build는 `scripts/build-release.mjs`(`pnpm run release`)예요. `release
 
 - `maker/index.js`: moai agent(`.claude/agents/moai/*.md`, `name`은 frontmatter에서 가져와요), moai skill 폴더(`SKILL.md`가 있는 `.claude/skills/moai*/`), 그리고 그 파일 모두의 `files`예요. UTF-8 텍스트가 아닌 파일이면 build가 실패해요.
 - `plugin/hooks/hooks.json`: release `.claude/settings.json`의 hook 등록을 `${CLAUDE_PLUGIN_ROOT}/hooks/moai/`로 옮겨요. `plugin/hooks/moai/`에는 그 등록이 실행하는 script가 있어요.
+- `maker/moai.js`: `plugin.json`이 기여하는 group module이에요. 원본 `src/group.js`와 data module `maker/index.js`를 esbuild로 import가 없는 파일 하나로 bundle해요. core가 provider page에 기여된 module 파일 하나만 허용하기 때문이에요.
 - `maker/settings.json`: release 설정 중 hook 등록이 아닌 부분이에요.
 - `maker/seed/index.json`: 릴리스 빌드가 쓰며, `version`은 고정한 릴리스 태그이고 `files`는 `maker/seed/.moai` 기준 상대 경로 목록이에요. 정렬되어 있고, template은 `.tmpl` 접미사를 유지해요. plugin modules 경로는 폴더를 나열하지 않으므로 페이지가 이 목록을 읽어요.
 - `maker/seed/.moai`: release `.moai` 폴더예요. Template은 렌더링하지 않았어요. 페이지가 `.tmpl` 8개를 프로젝트 값으로 렌더링해요. `ProjectName`은 폴더 이름이에요. Git 값은 `.git/config`에서 와요(moai의 `detectGitConfig` 규칙이에요. remote가 없으면 manual, remote가 있으면 personal이고, origin host가 provider를 정해요). `ConversationLanguage`와 출력 언어는 페이지 문서의 `navigator.language` 기본 언어 부분이에요. 웹 뷰가 보고하는 시스템 언어예요(core는 응용 프로그램 locale을 선언하지 않아요). moai의 언어 집합(`ko`, `en`, `ja`, `zh`, `es`, `fr`, `de`)에 없는 언어는 이름과 집합을 적은 오류로 거부하고, 파일을 쓰지 않아요. `UserName`은 비어 있어요. init에는 user name 플래그가 없기 때문이에요. `DevelopmentMode`는 `tdd`, `TestCoverageTarget`은 85, `EnforceQuality`는 true예요. 이것은 init 기본값이에요(`internal/template/context.go`, `internal/cli/init.go`). `CreatedAt`은 시드 시각이고, `Version`은 고정된 `v3.1.2`, `ResolvedMoaiPath`는 `$MOAI_HOME/bin/moai`예요. group이 설정한 변수로 agent 프로세스의 shell이 펼쳐서, 프로젝트에는 home 폴더가 들어가지 않아요. 사용자는 설정 화면에서 이 값을 바꿔요.
@@ -28,7 +29,7 @@ Release build는 `scripts/build-release.mjs`(`pnpm run release`)예요. `release
 
 ## Group 함수
 
-`ui/makers/moai.js`는 `group()`을 내보내요. 이 함수는 plugin modules 경로로 `maker/index.js`를 import해요. module 기준 `../../maker/index.js`이에요. 그리고 다음을 돌려줘요.
+`maker/moai.js`는 `group()`을 내보내요. 이 함수는 bundle된 data로 `src/group.js`의 `groupFrom`을 불러 group을 만들고, 다음을 돌려줘요.
 
 - `id`와 `name`: `moai`.
 - `plugin`: `plugin`, 교정한 plugin 폴더예요.
@@ -42,4 +43,4 @@ Release build는 `scripts/build-release.mjs`(`pnpm run release`)예요. `release
 
 module이 모양에 맞지 않으면 `maker/index.js`와 field를 적은 오류로 거부해요. Agent `path`가 `files`의 항목을 가리키지 않으면 `agents[1].path`처럼 적어요. Group에는 `port` field가 없어요. `moai web` 서버 하나가 실행 하나를 맡고, 그 실행이 port를 정하기 때문이에요.
 
-Package `files`는 `ui`와 `maker`를 실어서 release가 둘 다 담아요.
+Package `files`는 `ui`와 `maker`를 실어서 release가 둘 다 담아요. `src/`는 `maker/moai.js`가 담고 있어서 싣지 않아요. Surface page도 `maker/moai.js`를 import해요.

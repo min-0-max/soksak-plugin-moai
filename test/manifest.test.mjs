@@ -31,9 +31,8 @@ test("plugin.json contributes one moai group to the extension point agents.maker
   assert.equal(item.name, "moai");
   // The range contains the version 0.0.1 of the point agents.makers that the agents plugin declares.
   assert.equal(item.range, "^0.0.1");
-  // A module is a JavaScript path inside the plugin: relative, without a leading slash, an empty, . or .. segment, and ending in .js.
-  assert.match(item.module, /^ui\/[a-z0-9-]+(?:\/[a-z0-9-]+)*\.js$/);
-  assert.equal(item.module.split("/").includes(".."), false, "the module leaves the plugin");
+  // The module is the self-contained file that the release build writes, because core grants a provider page only that file.
+  assert.equal(item.module, "maker/moai.js");
 });
 
 test("plugin.json declares the moai programs that the pages run by name, each as the plugin-folder path plugin:bin/moai and literal arguments", () => {
@@ -53,7 +52,6 @@ test("package.json publishes the moai binary that the release build writes to bi
   assert.ok(pkg.files.includes("bin"), "package.json files does not list bin, the folder of the moai binary");
 });
 
-test("package.json publishes the group module and the shipped index of the maker release", () => {
-  assert.ok(pkg.files.includes("ui"), "package.json files does not list ui");
-  assert.ok(pkg.files.includes("maker"), "package.json files does not list maker, the folder of the shipped index");
+test("package.json publishes the maker release folder, which holds the group module", () => {
+  assert.ok(pkg.files.includes("maker"), "package.json files does not list maker, the folder of the group module");
 });

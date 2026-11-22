@@ -1,7 +1,7 @@
 // Checks the group module with a release-shaped data object: agents, skills and files as the release build writes maker/index.js.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { groupFrom } from "../ui/makers/moai.js";
+import { groupFrom } from "../src/group.js";
 
 const MANAGER_SPEC = ".claude/agents/moai/manager-spec.md";
 const MANAGER_DEVELOP = ".claude/agents/moai/manager-develop.md";

@@ -2,6 +2,7 @@
 // Builds the release folders of the moai plugin from the moai-adk release pinned in release/upstream.json:
 //   maker/index.js        the data module: the moai agents (.claude/agents/moai/*.md, with the model of each definition), the moai skill folders
 //                         (.claude/skills/moai*/ with SKILL.md) and every file of them with its project path and corrected text (no model line)
+//   maker/moai.js         the contributed group module: src/group.js and maker/index.js bundled into one file with no import
 //   maker/settings.json   the settings of the release that are not hook registrations (the account settings)
 //   maker/seed/.moai      the release .moai folder with its templates unrendered (the page renders them with the project values)
 //   plugin/hooks/hooks.json      the hook registrations, with the scripts under ${CLAUDE_PLUGIN_ROOT}/hooks/moai/
@@ -15,6 +16,7 @@ import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, re
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildSync } from "esbuild";
 import { parse } from "../ui/vendor/yaml.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -145,8 +147,9 @@ export function buildRelease({ releaseFile, sha256, version, out, binary }) {
       }
     }
     const folders = skills.map((name) => `.claude/skills/${name}`);
-    // The data module holds the agents, the skill folders and every file with its project path (ui/makers/moai.js reads it through the group).
+    // The data module holds the agents, the skill folders and every file with its project path.
     writeFileSync(join(out, "maker", "index.js"), indexModule({ agents, skills: folders, files }));
+    bundleGroup(out);
 
     // settings: the registrations go to plugin/hooks/hooks.json, the rest to maker/settings.json
     const settings = JSON.parse(readFileSync(join(claude, "settings.json"), "utf8"));
@@ -187,6 +190,24 @@ function listFiles(folder, prefix = "") {
 // readText returns the UTF-8 text of a file of the release; a file that is not UTF-8 text is an error that names it.
 function readText(file) {
   return new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(file));
+}
+
+// bundleGroup writes maker/moai.js, the module that plugin.json contributes, from src/group.js and maker/index.js.
+// Core grants a provider page only the contributed module file, so the file holds the data and imports nothing.
+function bundleGroup(out) {
+  const indexPath = join(out, "maker", "index.js");
+  buildSync({
+    stdin: {
+      contents: `import * as index from ${JSON.stringify(indexPath)};\nimport { groupFrom } from ${JSON.stringify(join(ROOT, "src", "group.js"))};\nexport async function group() {\n  return groupFrom(index);\n}\n`,
+      resolveDir: ROOT,
+      sourcefile: "maker-entry.js",
+    },
+    bundle: true,
+    format: "esm",
+    target: "safari17",
+    outfile: join(out, "maker", "moai.js"),
+    logLevel: "silent",
+  });
 }
 
 // indexModule returns the source of the data module maker/index.js with the agents, the skill folders and the files.

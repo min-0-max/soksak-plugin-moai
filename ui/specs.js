@@ -7,7 +7,7 @@ import { listRequest, SPECS_PATH, specIds, watchPathsOf, watchSpecsRequest, WATC
 import { recordRows, STATE_FOLDERS } from "./state-records.js";
 import { specDetailRows } from "./spec-detail-model.js";
 import { checkSectionText, CHECKED_SECTIONS, parseSettingValue } from "./section-check.js";
-import { group } from "./makers/moai.js";
+import { group } from "../maker/moai.js";
 import { moaiTabs } from "./moai-tabs.js";
 import { saveSection } from "./section-save.js";
 import { readSpecRequest } from "./spec-frontmatter.js";

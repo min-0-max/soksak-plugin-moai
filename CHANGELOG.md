@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- M28: The contributed group module is `maker/moai.js`, which the release build bundles into one file with no import, so the agents page imports the moai group; the version is 0.0.5.
 - M27: The release keeps the execute bit of `bin/moai`, so install accepts the program `plugin:bin/moai`; the version is 0.0.4.
 - M26: `plugin.json` requires the agents plugin `>=0.0.1`, so agents 0.0.2 and later install with it; the version is 0.0.3.
 - M25: The version is 0.0.2, which releases M24.

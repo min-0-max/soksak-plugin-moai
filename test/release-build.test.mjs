@@ -11,7 +11,8 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { buildRelease } from "../scripts/build-release.mjs";
 import { pathToFileURL } from "node:url";
-import { groupFrom } from "../ui/makers/moai.js";
+import { buildSync } from "esbuild";
+import { groupFrom } from "../src/group.js";
 
 // Imports the data module that the release build wrote into out/maker/index.js.
 async function indexOf(out) {
@@ -186,6 +187,26 @@ test("the built data module is accepted by the group function that reads it", as
     assert.deepEqual(group.skills, [".claude/skills/moai-run"]);
     assert.equal(group.agents[1].model, "opus");
     assert.ok(group.files.length > 0);
+  });
+});
+
+// Lists the static and dynamic imports and the export-from statements of a module file, as esbuild reads them without bundling.
+function importsOf(file) {
+  const result = buildSync({ entryPoints: [file], bundle: false, format: "esm", write: false, metafile: true, logLevel: "silent" });
+  return Object.values(result.metafile.inputs).flatMap((input) => input.imports.map((entry) => `${entry.kind} ${entry.path}`));
+}
+
+test("the contributed group module maker/moai.js is one file with no import, because core grants a provider page only that file", async () => {
+  await withBuildAsync(async ({ releaseFile, sha256, binary, out }) => {
+    buildRelease({ releaseFile, sha256, version: VERSION, out, binary });
+    const file = join(out, "maker", "moai.js");
+    assert.ok(existsSync(file), "the build writes no maker/moai.js");
+    assert.deepEqual(importsOf(file), []);
+    const { group } = await import(pathToFileURL(file).href);
+    const built = await group();
+    assert.equal(built.id, "moai");
+    assert.deepEqual(built.agents.map((agent) => agent.path), [".claude/agents/moai/manager-develop.md", ".claude/agents/moai/manager-spec.md"]);
+    assert.deepEqual(built.skills, [".claude/skills/moai-run"]);
   });
 });
 
