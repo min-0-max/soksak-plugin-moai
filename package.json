@@ -1,6 +1,6 @@
 {
   "name": "@soksak/plugin-moai",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.24.0",
@@ -20,6 +20,9 @@
     "plugin",
     "bin"
   ],
+  "bin": {
+    "moai": "bin/moai"
+  },
   "scripts": {
     "build": "node scripts/build-vendor.mjs",
     "test": "node scripts/build-vendor.mjs --check && node --test --test-timeout=120000 test/",

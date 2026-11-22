@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- M27: release가 `bin/moai`의 실행 bit를 유지해서 install이 program `plugin:bin/moai`를 받는다. version은 0.0.4이다.
 - M26: `plugin.json`이 agents plugin `>=0.0.1`을 요구해서 agents 0.0.2 이후 version과 함께 설치된다. version은 0.0.3이다.
 - M25: version은 0.0.2이고, M24를 release한다.
 - M24: `plugin.json`이 agents plugin을 package `@soksak/plugin-agents`로 이름 지어서 moai를 설치하면 agents가 설치된다.

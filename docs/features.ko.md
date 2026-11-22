@@ -40,3 +40,4 @@
 - [o] M24 — P1: agents plugin 의존성은 package `@soksak/plugin-agents`를 이름으로 쓴다. 의존성 key는 index에 있는 plugin의 package이고, key `agents`로는 아무것도 설치되지 않았기 때문이다. Red: manifest test가 key `agents`로 실패했다. Green: 통과한다.
 - [o] M25 — P0: M24를 0.0.2로 release한다. main의 release run이 release 파일 `soksak-plugin-moai-0.0.2.tgz`와 함께 v0.0.2를 게시했다.
 - [o] M26 — P1: agents plugin 의존 범위는 `>=0.0.1`이다. 0.0 version의 caret 범위는 그 version 하나만 받아서 `^0.0.1`이 agents 0.0.2를 거부했기 때문이다. version은 0.0.3이다. Red: manifest test가 `^0.0.1`로 실패했다. Green: 통과한다.
+- [o] M27 — P0: release가 `bin/moai`의 실행 bit를 유지한다. install은 program `plugin:bin/moai`에 실행 bit를 요구한다. `pnpm pack`은 `package.json`의 `bin`에 없는 파일을 mode 0644로 쓰기 때문에, 0.0.3까지의 release는 install에서 `is not a regular executable file`로 거부됐다. `package.json`이 `bin`에 `bin/moai`를 두고, version은 0.0.4이다. Red: `test/pack-mode.test.mjs`가 mode `-rw-r--r--`를 찾았다. Green: `-rwxr-xr-x`를 찾는다.
