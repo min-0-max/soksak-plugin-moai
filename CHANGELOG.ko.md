@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- M14: surface page가 각 SPEC의 `spec.md`를 읽고 선언된 program `spec-audit`(`moai spec audit --json --base-dir .`)을 실행해서, SPEC마다 행 하나와 MUST-FIX 조치를 보여 줘요(`ui/spec-detail-model.js`). 행의 오류는 `showError`로 보내요. 테스트: `test/spec-detail.test.mjs`(6개). Red: model이 없었어요.
 - M15-3: 저장 흐름 `ui/section-save.js`가 section 값 하나를 `expect`와 함께 쓰고, 선언된 program `config-load`(`moai doctor config dump --format json`)를 실행해요. 실행이 실패하면 이전 텍스트를 되돌리고 moai의 오류를 보여줘요. `plugin.json`이 program을 선언하고, `ui/program-reply.js`가 실행 답을 읽어요. 테스트: `test/section-save.test.mjs`와 manifest 테스트. Red: module과 선언이 없어서 실패했어요. 설정 화면은 M15-4예요.
 - M2-2a: 시드 값과 renderer예요. `ui/seed-model.js`가 `.moai` template 8개의 값을 프로젝트, git 설정, 응용 프로그램 locale, init 기본값에서 정하고 렌더링해요. Build는 release의 `.moai` 폴더를 렌더링하지 않은 채 `maker/seed/.moai`로 실어요.
 - M2-2d: plugin이 `@soksak/sidecar-files`를 `>=0.0.12`로 요구해요. 시드가 쓰는 `createFolder`가 있는 배포본이에요.

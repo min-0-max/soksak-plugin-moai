@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- M14: The surface page reads each SPEC `spec.md` and runs the declared program `spec-audit` (`moai spec audit --json --base-dir .`), and shows one row per SPEC with its MUST-FIX remediations (`ui/spec-detail-model.js`). Row errors go through `showError`. Tests: `test/spec-detail.test.mjs` (6 tests); Red: the model was missing.
 - M15-3: The save flow `ui/section-save.js` writes one section value with `expect`, runs the declared program `config-load` (`moai doctor config dump --format json`), and on a failed run restores the previous text and reports moai's error. `plugin.json` declares the program; `ui/program-reply.js` reads the run reply. Tests: `test/section-save.test.mjs`, the manifest test. Red: the module and the declaration were missing. The settings screen is M15-4.
 - M2-2a: The seed values and renderer: `ui/seed-model.js` derives the values of the eight `.moai` templates from the project, the git config, the application locale and the init defaults, and renders them. The build ships the release `.moai` folder unrendered as `maker/seed/.moai`.
 - M2-2d: The plugin requires `@soksak/sidecar-files` `>=0.0.12`, the release with `createFolder` that the seed uses.

@@ -38,6 +38,7 @@ test("plugin.json contributes one moai group to the extension point agents.maker
 
 test("plugin.json declares the moai programs that the pages run by name, each as a bare name and literal arguments", () => {
   assert.deepEqual(manifest.programs["config-load"], { program: "moai", args: ["doctor", "config", "dump", "--format", "json"] });
+  assert.deepEqual(manifest.programs["spec-audit"], { program: "moai", args: ["spec", "audit", "--json", "--base-dir", "."] });
 });
 
 test("plugin.json extends no extension point, because the moai plugin is a contributor only", () => {

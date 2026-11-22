@@ -14,6 +14,10 @@
     "config-load": {
       "program": "moai",
       "args": ["doctor", "config", "dump", "--format", "json"]
+    },
+    "spec-audit": {
+      "program": "moai",
+      "args": ["spec", "audit", "--json", "--base-dir", "."]
     }
   },
   "dependencies": {

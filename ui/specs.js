@@ -2,9 +2,14 @@
 // that the sidecar reports. The page starts no timer: every update comes from a reply or a sidecar event.
 import { createViewBridge } from "@soksak/plugin-api/view";
 import { seedMoaiProject } from "./seed.js";
+import { programStdout } from "./program-reply.js";
 import { firstWatchPath, listSpecsRequest, nextWatchPath, specIds, watchSpecsRequest } from "./specs-model.js";
+import { specDetailRows } from "./spec-detail-model.js";
+import { readSpecRequest } from "./spec-frontmatter.js";
 
 const SIDECAR = "@soksak/sidecar-files";
+// The declared program of plugin.json that prints the MUST-FIX drift findings of the SPECs (docs/spec/native-surfaces.md#program-runs).
+const SPEC_AUDIT_PROGRAM = "spec-audit";
 
 // Errors of this page go through the one display path of the view: the bridge writes each one to the application log.
 const bridge = createViewBridge({
@@ -19,12 +24,15 @@ const surface = window.sokSurface.surface;
 const sidecar = bridge.runtime.sidecar(SIDECAR);
 const list = document.getElementById("specs");
 const seedReport = document.getElementById("seed");
+const detail = document.getElementById("detail");
 // Requests of the seed wait for their reply by id; the watch and list replies keep their own handlers.
 const pending = new Map();
 let counter = 0;
 let watchId = null;
 let watchPath = null;
 let listId = null;
+// Each refresh of the detail rows takes a number; a refresh that ends after a later one began is dropped.
+let detailGeneration = 0;
 
 function nextId(prefix) {
   counter += 1;
@@ -66,6 +74,39 @@ function seedProject() {
   }).then(({ written, kept }) => {
     seedReport.textContent = `moai seed: wrote ${written.length} files, kept ${kept.length} existing.`;
   });
+}
+
+// Reads the spec.md of each folder and runs the audit, then shows one row per SPEC. A row error goes through showError, the one
+// display path of the page; the rows show no error text of their own.
+async function refreshDetail(folders) {
+  const generation = ++detailGeneration;
+  const documents = new Map();
+  await Promise.all(folders.map(async (folder) => {
+    try {
+      const body = await request((id) => readSpecRequest(id, folder));
+      documents.set(folder, { text: body.text });
+    } catch (error) {
+      documents.set(folder, { error: error.message });
+    }
+  }));
+  const auditText = programStdout(SPEC_AUDIT_PROGRAM, await bridge.runtime.program.run(SPEC_AUDIT_PROGRAM, []));
+  if (generation !== detailGeneration) return;
+  const rows = specDetailRows(folders, documents, auditText);
+  detail.replaceChildren(...rows.map((row) => {
+    const item = document.createElement("li");
+    item.textContent = [row.id, row.title, row.status].filter((text) => text !== "").join("  ");
+    const fixes = document.createElement("ul");
+    fixes.replaceChildren(...row.mustFix.map((text) => {
+      const fix = document.createElement("li");
+      fix.textContent = text;
+      return fix;
+    }));
+    item.append(fixes);
+    return item;
+  }));
+  for (const row of rows) {
+    if (row.error !== null) showError(`moai spec ${row.folder}`, new Error(row.error));
+  }
 }
 
 function render(ids) {
@@ -129,11 +170,15 @@ function onMessage(body) {
     return;
   }
   if (body.id === listId) {
+    let ids;
     try {
-      render(specIds(body));
+      ids = specIds(body);
     } catch (error) {
       showError("moai specs", error);
+      return;
     }
+    render(ids);
+    refreshDetail(ids).catch((error) => showError("moai spec audit", error));
   }
 }
 
