@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- M2-2a: The seed values and renderer: `ui/seed-model.js` derives the values of the eight `.moai` templates from the project, the git config, the application locale and the init defaults, and renders them. The build ships the release `.moai` folder unrendered as `maker/seed/.moai`.
 - M2-2: Held without code. The seed is the release `.moai/` folder, and eight of its files are templates that `init` renders with values the contract does not name. A partial seed would leave the config sections missing, so nothing is written.
 - M2-3: The build moves each agent `model:` into its index entry and removes the line from the copied definition (club.md, measurement C4); the group module validates and returns the model. The build writes index paths as `agents/moai/<file>` and `skills/<folder>`, the form the group checks, and a test passes the built index through the group module.
 - M2-4: The build rewrites the fallback of each moved hook command to take the log folder from `CLAUDE_PROJECT_DIR`, so a missing script logs into the project folder. Test: `test/release-build.test.mjs` runs the command with bash against a missing script.

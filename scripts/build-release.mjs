@@ -3,6 +3,7 @@
 //   maker/index.json      the moai agents (.claude/agents/moai/*.md, with the model of each definition) and the moai skills (.claude/skills/moai*/ with SKILL.md)
 //   maker/agents, maker/skills   the files that the index names, without the model line of each agent
 //   maker/settings.json   the settings of the release that are not hook registrations (the account settings)
+//   maker/seed/.moai      the release .moai folder with its templates unrendered (the page renders them with the project values)
 //   plugin/hooks/hooks.json      the hook registrations, with the scripts under ${CLAUDE_PLUGIN_ROOT}/hooks/moai/
 //   plugin/hooks/moai/    the hook scripts that a registration runs
 // The release file sha256 must equal the pin before anything is extracted or written. The build reads no other network address.
@@ -125,6 +126,11 @@ export function buildRelease({ releaseFile, sha256, out }) {
     }
     writeFileSync(join(out, "plugin", "hooks", "hooks.json"), `${JSON.stringify({ hooks: moved }, null, 2)}\n`);
     writeFileSync(join(out, "maker", "settings.json"), `${JSON.stringify(rest, null, 2)}\n`);
+
+    // seed: the release .moai folder, shipped unrendered; the page renders its templates with the project values
+    const seedSource = join(work, top[0], "internal", "template", "templates", ".moai");
+    if (!existsSync(seedSource)) throw new Error("release has no .moai template folder: internal/template/templates/.moai");
+    cpSync(seedSource, join(out, "maker", "seed", ".moai"), { recursive: true });
   } finally {
     rmSync(work, { recursive: true, force: true });
   }

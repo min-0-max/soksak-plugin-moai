@@ -166,3 +166,11 @@ test("the built maker index is accepted by the group module that reads it", asyn
     }
   });
 });
+
+test("the release .moai folder is shipped as maker/seed/.moai, templates unrendered, for the page to render with the project values", () => {
+  withBuild(({ releaseFile, sha256, out }) => {
+    buildRelease({ releaseFile, sha256, out });
+    assert.equal(readFileSync(join(out, "maker", "seed", ".moai", "config", "sections", "user.yaml.tmpl"), "utf8"), 'user:\n  name: "{{.UserName}}"\n');
+    assert.equal(readFileSync(join(out, "maker", "seed", ".moai", "README.md"), "utf8"), "# moai project\n");
+  });
+});
