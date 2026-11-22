@@ -100,3 +100,23 @@ test("an agent without a name in its frontmatter is an error that names the file
     assert.throws(() => buildRelease({ releaseFile: join(work, "bad.tar.gz"), sha256, out }), /manager-spec\.md: frontmatter name/);
   });
 });
+
+test("the fallback of a hook command, which runs when its script is missing, writes its log into the project folder", () => {
+  withBuild(({ releaseFile, sha256, out, work }) => {
+    buildRelease({ releaseFile, sha256, out });
+    const hooks = JSON.parse(readFileSync(join(out, "plugin", "hooks", "hooks.json"), "utf8")).hooks;
+    const hook = hooks.SessionStart[0].hooks[0];
+    assert.match(hook.args[1], /d="\$\{CLAUDE_PROJECT_DIR\}"/);
+    assert.doesNotMatch(hook.args[1], /\$\{0%/);
+    const pluginRoot = join(work, "installed-plugin");
+    const projectDir = join(work, "project");
+    mkdirSync(projectDir, { recursive: true });
+    const scriptPath = hook.args[2].replace("${CLAUDE_PLUGIN_ROOT}", pluginRoot);
+    execFileSync("bash", ["-c", hook.args[1], scriptPath], {
+      env: { ...process.env, CLAUDE_PROJECT_DIR: projectDir },
+    });
+    const log = readFileSync(join(projectDir, ".moai", "logs", "hook-missing.log"), "utf8");
+    assert.match(log, /hook missing: .*handle-start\.sh/);
+    assert.ok(!existsSync(join(pluginRoot, ".moai")), "the log is not written under the plugin folder");
+  });
+});

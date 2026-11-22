@@ -19,7 +19,7 @@ Release build는 `scripts/build-release.mjs`(`pnpm run release`)예요. `release
 - `plugin/hooks/hooks.json`: release `.claude/settings.json`의 hook 등록을 `${CLAUDE_PLUGIN_ROOT}/hooks/moai/`로 옮겨요. `plugin/hooks/moai/`에는 그 등록이 실행하는 script가 있어요.
 - `maker/settings.json`: release 설정 중 hook 등록이 아닌 부분이에요.
 
-`.claude/hooks/moai/` 밖의 script를 실행하는 등록은 build를 실패시켜요. Hook 코드가 쓰는 프로젝트 `settings.local.json`은 이 build가 바꾸지 않아요. Agent는 `--setting-sources user`로 실행하므로 claude가 그 파일을 읽지 않아요(club.md, 측정 I4와 M5). 각 등록 명령의 fallback은 script가 없을 때만 실행되고, script 경로에서 `.claude/hooks/moai/`를 찾아 log 폴더를 정해요. Plugin 경로 `${CLAUDE_PLUGIN_ROOT}/hooks/moai/`에는 그 부분이 없어서 그 fallback은 log를 쓰지 못해요. Build는 명령을 바꾸지 않으며, 이것은 알려진 공백이에요.
+`.claude/hooks/moai/` 밖의 script를 실행하는 등록은 build를 실패시켜요. Hook 코드가 쓰는 프로젝트 `settings.local.json`은 이 build가 바꾸지 않아요. Agent는 `--setting-sources user`로 실행하므로 claude가 그 파일을 읽지 않아요(club.md, 측정 I4와 M5). 각 등록 명령의 fallback은 script가 없을 때만 실행되고, log 폴더를 `CLAUDE_PROJECT_DIR`에서 정해요. 명령이 script 경로에 이미 쓰는 변수예요. Build는 `d="${0%/.claude/hooks/moai/*}"`를 `d="${CLAUDE_PROJECT_DIR}"`로 고쳐요. Plugin 경로에는 프로젝트 폴더가 없기 때문이에요.
 
 ## Group 함수
 

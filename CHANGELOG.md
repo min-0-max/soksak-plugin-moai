@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- M2-4: The build rewrites the fallback of each moved hook command to take the log folder from `CLAUDE_PROJECT_DIR`, so a missing script logs into the project folder. Test: `test/release-build.test.mjs` runs the command with bash against a missing script.
 - M2: The release build `scripts/build-release.mjs` pins moai-adk `v3.1.2` (`release/upstream.json`, sha256 checked) and writes `maker/` (the moai agents and skills in `index.json`, the account settings) and `plugin/hooks/` (the hook registrations under `${CLAUDE_PLUGIN_ROOT}`, with the scripts they run). Tests: `test/release-build.test.mjs` on a fixture of the release layout. `pnpm run release` and `make pack` run the build; `maker/` and `plugin/` are not tracked.
 - M2: Held without code. The upstream pin candidate is moai-adk v3.1.2 (newest non-draft release). The release has no `plugin/` generator, the `settings.local.json` writes need a fork, and the moai group composition is not stated. The checklist records the three causes and the resume conditions.
 - M15-2e: The strict llm section check `ui/llm-section-rules.js` ports `ValidateLLMYAMLSection` over the llm field types, the yaml.v3 decode kinds and the `!!bool` rule of `agent_overrides_consume`, each with its moai-adk line. Tests: `test/llm-section.test.mjs` (7 tests); Red: the module was missing. The vendor entry exports `isMap`, `isScalar` and `isSeq`.

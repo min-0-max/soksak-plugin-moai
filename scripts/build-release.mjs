@@ -17,6 +17,8 @@ import { parse } from "../ui/vendor/yaml.js";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const HOOK_PREFIX = "${CLAUDE_PROJECT_DIR}/.claude/hooks/moai/";
 const PLUGIN_HOOK_PREFIX = "${CLAUDE_PLUGIN_ROOT}/hooks/moai/";
+const LOG_FOLDER_FROM = 'd="${0%/.claude/hooks/moai/*}"';
+const LOG_FOLDER_TO = 'd="${CLAUDE_PROJECT_DIR}"';
 
 // frontmatterName returns the name of an agent file. The name is required, because the group identifies the agent by it.
 export function frontmatterName(file, text) {
@@ -39,6 +41,17 @@ function transformHooks(hooks, scripts) {
         const index = args.findIndex((arg) => typeof arg === "string" && arg.startsWith(HOOK_PREFIX));
         if (index < 0) {
           throw new Error(`hook command outside .claude/hooks/moai: ${[hook.command, ...args].join(" ")}`);
+        }
+        // The fallback of the command derives the log folder from $0, which is the script path. A plugin path has no
+        // .claude/hooks/moai segment, so the fallback takes the project folder from CLAUDE_PROJECT_DIR, the variable that
+        // the same command already uses for the script path.
+        for (let i = 0; i < args.length; i += 1) {
+          if (typeof args[i] === "string" && args[i].includes(LOG_FOLDER_FROM)) {
+            args[i] = args[i].replaceAll(LOG_FOLDER_FROM, LOG_FOLDER_TO);
+          }
+          if (typeof args[i] === "string" && args[i].includes("${0%")) {
+            throw new Error(`hook fallback derives a folder from $0 and is not rewritten: ${hook.command} ${args[i]}`);
+          }
         }
         const script = args[index].slice(HOOK_PREFIX.length);
         if (script === "" || basename(script) !== script) throw new Error(`hook script name is not a file name: ${script}`);

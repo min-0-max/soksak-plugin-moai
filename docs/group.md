@@ -19,7 +19,7 @@ The release build is `scripts/build-release.mjs` (`pnpm run release`). It reads 
 - `plugin/hooks/hooks.json`, which moves each hook registration of the release `.claude/settings.json` to `${CLAUDE_PLUGIN_ROOT}/hooks/moai/`, and `plugin/hooks/moai/` with the scripts those registrations run;
 - `maker/settings.json`, the settings of the release that are not hook registrations.
 
-A registration that runs a script outside `.claude/hooks/moai/` fails the build. The project `settings.local.json` that the hook code writes is not changed by this build: agents run with `--setting-sources user`, so claude does not read that file (club.md, measurements I4 and M5). The fallback of each registration command, which runs only when its script is missing, derives the log folder by matching `.claude/hooks/moai/` in the script path. The plugin path `${CLAUDE_PLUGIN_ROOT}/hooks/moai/` has no such segment, so that fallback cannot write its log; the build does not change the command, and this is a known gap.
+A registration that runs a script outside `.claude/hooks/moai/` fails the build. The project `settings.local.json` that the hook code writes is not changed by this build: agents run with `--setting-sources user`, so claude does not read that file (club.md, measurements I4 and M5). The fallback of each registration command, which runs only when its script is missing, takes the log folder from `CLAUDE_PROJECT_DIR`, the variable that the command already uses for the script path. The build rewrites `d="${0%/.claude/hooks/moai/*}"` to `d="${CLAUDE_PROJECT_DIR}"` for that reason: the plugin path has no project folder in it.
 
 ## Group function
 
