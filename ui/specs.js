@@ -5,6 +5,8 @@ import { seedMoaiProject } from "./seed.js";
 import { programStdout } from "./program-reply.js";
 import { firstWatchPath, listSpecsRequest, nextWatchPath, specIds, watchSpecsRequest } from "./specs-model.js";
 import { specDetailRows } from "./spec-detail-model.js";
+import { checkSectionText, CHECKED_SECTIONS, parseSettingValue } from "./section-check.js";
+import { saveSection } from "./section-save.js";
 import { readSpecRequest } from "./spec-frontmatter.js";
 
 const SIDECAR = "@soksak/sidecar-files";
@@ -25,6 +27,12 @@ const sidecar = bridge.runtime.sidecar(SIDECAR);
 const list = document.getElementById("specs");
 const seedReport = document.getElementById("seed");
 const detail = document.getElementById("detail");
+const settingsForm = document.getElementById("settings");
+const settingsSection = document.getElementById("settings-section");
+const settingsKey = document.getElementById("settings-key");
+const settingsValue = document.getElementById("settings-value");
+const settingsSave = document.getElementById("settings-save");
+const settingsStatus = document.getElementById("settings-status");
 // Requests of the seed wait for their reply by id; the watch and list replies keep their own handlers.
 const pending = new Map();
 let counter = 0;
@@ -181,6 +189,43 @@ function onMessage(body) {
     refreshDetail(ids).catch((error) => showError("moai spec audit", error));
   }
 }
+
+// Saves one value of a section file: the key names the section and the field path, as quality.test_coverage_target does. The file
+// is checked before the write, and the moai load runs after it; a failed check or load leaves the previous text in place.
+async function saveSetting() {
+  const section = settingsSection.value;
+  const path = settingsKey.value.trim().split(".");
+  if (path.length < 2 || path[0] !== section || path.some((part) => part === "")) {
+    throw new Error(`key must name a field of ${section}, such as ${section}.<field>`);
+  }
+  const value = parseSettingValue(settingsValue.value);
+  settingsSave.disabled = true;
+  try {
+    await saveSection({
+      check: (text) => checkSectionText(section, text),
+      section,
+      path,
+      value,
+      request,
+      run: (name) => bridge.runtime.program.run(name, []),
+    });
+    settingsStatus.textContent = `saved ${path.join(".")}`;
+  } finally {
+    settingsSave.disabled = false;
+  }
+}
+
+settingsSection.replaceChildren(...CHECKED_SECTIONS.map((name) => {
+  const option = document.createElement("option");
+  option.value = name;
+  option.textContent = name;
+  return option;
+}));
+settingsForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  settingsStatus.textContent = "";
+  saveSetting().catch((error) => showError("moai settings", error));
+});
 
 async function start() {
   await sidecar.on(surface, (body) => onMessage(body));

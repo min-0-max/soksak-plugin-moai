@@ -8,6 +8,13 @@
 <body>
   <ul id="specs"></ul>
   <ul id="detail"></ul>
+  <form id="settings">
+    <select id="settings-section" aria-label="Section"></select>
+    <input id="settings-key" aria-label="Key" placeholder="quality.test_coverage_target" autocomplete="off">
+    <input id="settings-value" aria-label="Value" autocomplete="off">
+    <button id="settings-save" type="submit">Save</button>
+    <p id="settings-status"></p>
+  </form>
   <p id="seed"></p>
   <script type="module" src="./specs.js"></script>
 </body>
