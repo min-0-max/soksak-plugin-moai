@@ -32,7 +32,7 @@ test("the group reads the shipped index through the plugin modules path and list
     const { port } = server.address();
     const group = await groupFromIndex(new URL(`http://127.0.0.1:${port}${PREFIX}maker/index.json`));
     assert.deepEqual(group.agents, [
-      { name: "manager-spec", path: "agents/manager-spec.md", cli: "claude" },
+      { name: "manager-spec", path: "agents/manager-spec.md", cli: "claude", model: "opus" },
       { name: "manager-develop", path: "agents/manager-develop.md", cli: "claude" },
     ]);
     assert.deepEqual(group.skills, ["skills/moai-run", "skills/moai-workflow-spec"]);
@@ -78,5 +78,19 @@ test("the group refuses an index that does not match the shape, and names the in
   } finally {
     server.close();
     await once(server, "close");
+  }
+});
+
+test("an agent model that is not a non-empty string is an error that names the index field", async () => {
+  const server = createServer((request, response) => {
+    response.writeHead(200, { "content-type": "application/json" }).end('{"agents":[{"name":"x","path":"agents/x.md","cli":"claude","model":5}],"skills":[]}');
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const url = new URL(`http://127.0.0.1:${server.address().port}/maker/index.json`);
+    const { groupFromIndex } = await import("../ui/makers/moai.js");
+    await assert.rejects(groupFromIndex(url), (error) => error.message.includes("agents[0].model"));
+  } finally {
+    server.close();
   }
 });

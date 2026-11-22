@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Builds the release folders of the moai plugin from the moai-adk release pinned in release/upstream.json:
-//   maker/index.json      the moai agents (.claude/agents/moai/*.md) and the moai skills (.claude/skills/moai*/ with SKILL.md)
-//   maker/agents, maker/skills   the files that the index names
+//   maker/index.json      the moai agents (.claude/agents/moai/*.md, with the model of each definition) and the moai skills (.claude/skills/moai*/ with SKILL.md)
+//   maker/agents, maker/skills   the files that the index names, without the model line of each agent
 //   maker/settings.json   the settings of the release that are not hook registrations (the account settings)
 //   plugin/hooks/hooks.json      the hook registrations, with the scripts under ${CLAUDE_PLUGIN_ROOT}/hooks/moai/
 //   plugin/hooks/moai/    the hook scripts that a registration runs
@@ -20,14 +20,23 @@ const PLUGIN_HOOK_PREFIX = "${CLAUDE_PLUGIN_ROOT}/hooks/moai/";
 const LOG_FOLDER_FROM = 'd="${0%/.claude/hooks/moai/*}"';
 const LOG_FOLDER_TO = 'd="${CLAUDE_PROJECT_DIR}"';
 
-// frontmatterName returns the name of an agent file. The name is required, because the group identifies the agent by it.
-export function frontmatterName(file, text) {
+// frontmatterFields returns the name and the optional model of an agent file. The name is required, because the group
+// identifies the agent by it; a model that is present must be a non-empty string.
+export function frontmatterFields(file, text) {
   const match = /^---\n([\s\S]*?)\n---/.exec(text);
   const data = match ? parse(match[1]) : null;
   if (!data || typeof data.name !== "string" || data.name.trim() === "") {
     throw new Error(`${file}: frontmatter name is missing`);
   }
-  return data.name.trim();
+  if (data.model !== undefined && (typeof data.model !== "string" || data.model.trim() === "")) {
+    throw new Error(`${file}: frontmatter model must be a non-empty string`);
+  }
+  return { name: data.name.trim(), model: data.model === undefined ? undefined : data.model.trim() };
+}
+
+// withoutModel removes the model line of the frontmatter, so the session model is not overwritten (club.md, measurement C4).
+export function withoutModel(text) {
+  return text.replace(/^---\n([\s\S]*?)\n---/, (block, body) => `---\n${body.split("\n").filter((line) => !/^model:/.test(line)).join("\n")}\n---`);
 }
 
 // transformHooks moves each registration to the plugin path. A registration that runs a script outside the moai hook folder is an error.
@@ -88,9 +97,10 @@ export function buildRelease({ releaseFile, sha256, out }) {
       .sort()
       .map((file) => {
         const text = readFileSync(join(agentSource, file), "utf8");
-        const name = frontmatterName(`agents/moai/${file}`, text);
-        writeFileSync(join(agentDest, file), text);
-        return { name, path: `moai/${file}`, cli: "claude" };
+        const { name, model } = frontmatterFields(`agents/moai/${file}`, text);
+        writeFileSync(join(agentDest, file), withoutModel(text));
+        const path = `agents/moai/${file}`;
+        return model === undefined ? { name, path, cli: "claude" } : { name, path, cli: "claude", model };
       });
 
     // skills: .claude/skills/moai*/ that hold a SKILL.md
@@ -99,7 +109,7 @@ export function buildRelease({ releaseFile, sha256, out }) {
       .filter((name) => name.startsWith("moai") && existsSync(join(skillSource, name, "SKILL.md")))
       .sort();
     for (const name of skills) cpSync(join(skillSource, name), join(out, "maker", "skills", name), { recursive: true });
-    writeFileSync(join(out, "maker", "index.json"), `${JSON.stringify({ agents, skills }, null, 2)}\n`);
+    writeFileSync(join(out, "maker", "index.json"), `${JSON.stringify({ agents, skills: skills.map((name) => `skills/${name}`) }, null, 2)}\n`);
 
     // settings: the registrations go to plugin/hooks/hooks.json, the rest to maker/settings.json
     const settings = JSON.parse(readFileSync(join(claude, "settings.json"), "utf8"));

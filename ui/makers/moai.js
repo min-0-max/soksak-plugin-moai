@@ -57,7 +57,13 @@ function checkAgents(indexUrl, index) {
     if (agent.cli !== "claude") {
       fail(indexUrl, `${field}.cli`, "must be claude");
     }
-    return { name: agent.name, path: agent.path, cli: agent.cli };
+    if (agent.model !== undefined && (typeof agent.model !== "string" || agent.model === "")) {
+      fail(indexUrl, `${field}.model`, "must be a non-empty string when present");
+    }
+    // The model of the definition is applied to the session by agents (makers.md, agents item schema), so it is kept when present.
+    return agent.model === undefined
+      ? { name: agent.name, path: agent.path, cli: agent.cli }
+      : { name: agent.name, path: agent.path, cli: agent.cli, model: agent.model };
   });
 }
 

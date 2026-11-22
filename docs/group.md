@@ -8,8 +8,8 @@ The moai group is the maker group that this plugin contributes to the extension 
 
 The release build of this plugin writes `maker/index.json` beside the `ui` folder. It holds the agents and skills of the corrected copy of the upstream moai source, which the release build fetches at the pinned revision:
 
-- `agents`: one object per agent with `name`, `path` (a relative path under `agents/` that ends in `.md`) and `cli` (`claude`).
-- `skills`: relative folders under `skills/`, one per skill.
+- `agents`: one object per agent with `name`, `path` (a relative path under `agents/` that ends in `.md`, for example `agents/moai/manager-spec.md`), `cli` (`claude`), and `model` when the definition has a `model:` line. The build moves that value into the index and removes the line from the copied definition, because `model:` overrides the session model (club.md, measurement C4); agents applies the value to the session (makers.md).
+- `skills`: relative folders under `skills/`, one per skill, for example `skills/moai-run`.
 
 The release build also writes the corrected plugin folder as `plugin/`. The group does not fetch, install or list files at call time.
 

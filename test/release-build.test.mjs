@@ -9,7 +9,9 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { createServer } from "node:http";
 import { buildRelease } from "../scripts/build-release.mjs";
+import { groupFromIndex } from "../ui/makers/moai.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtureParent = join(here, "fixtures", "upstream-release");
@@ -18,6 +20,16 @@ function releaseFileOfFixture(work) {
   const releaseFile = join(work, "moai-adk-fixture.tar.gz");
   execFileSync("tar", ["-czf", releaseFile, "-C", fixtureParent, "moai-adk-fixture"]);
   return { releaseFile, sha256: createHash("sha256").update(readFileSync(releaseFile)).digest("hex") };
+}
+
+async function withBuildAsync(run) {
+  const work = mkdtempSync(join(tmpdir(), "moai-release-test-"));
+  try {
+    const { releaseFile, sha256 } = releaseFileOfFixture(work);
+    await run({ work, releaseFile, sha256, out: join(work, "out") });
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
 }
 
 function withBuild(run) {
@@ -35,10 +47,10 @@ test("the build writes the moai agents and moai skills into maker/index.json, an
     buildRelease({ releaseFile, sha256, out });
     const index = JSON.parse(readFileSync(join(out, "maker", "index.json"), "utf8"));
     assert.deepEqual(index.agents, [
-      { name: "manager-develop", path: "moai/manager-develop.md", cli: "claude" },
-      { name: "manager-spec", path: "moai/manager-spec.md", cli: "claude" },
+      { name: "manager-develop", path: "agents/moai/manager-develop.md", cli: "claude" },
+      { name: "manager-spec", path: "agents/moai/manager-spec.md", cli: "claude", model: "opus" },
     ]);
-    assert.deepEqual(index.skills, ["moai-run"]);
+    assert.deepEqual(index.skills, ["skills/moai-run"]);
     assert.ok(existsSync(join(out, "maker", "agents", "moai", "manager-spec.md")));
     assert.ok(existsSync(join(out, "maker", "skills", "moai-run", "extra.md")));
     assert.ok(!existsSync(join(out, "maker", "agents", "harness")));
@@ -118,5 +130,39 @@ test("the fallback of a hook command, which runs when its script is missing, wri
     const log = readFileSync(join(projectDir, ".moai", "logs", "hook-missing.log"), "utf8");
     assert.match(log, /hook missing: .*handle-start\.sh/);
     assert.ok(!existsSync(join(pluginRoot, ".moai")), "the log is not written under the plugin folder");
+  });
+});
+
+test("the model of an agent definition moves to its index entry, and the copied definition has no model line", () => {
+  withBuild(({ releaseFile, sha256, out }) => {
+    buildRelease({ releaseFile, sha256, out });
+    const copied = readFileSync(join(out, "maker", "agents", "moai", "manager-spec.md"), "utf8");
+    assert.equal(copied, "---\nname: manager-spec\ndescription: SPEC builder\n---\nSPEC body\n");
+    const develop = JSON.parse(readFileSync(join(out, "maker", "index.json"), "utf8")).agents[0];
+    assert.equal(develop.model, undefined, "an agent without a model has no model key");
+  });
+});
+
+test("the built maker index is accepted by the group module that reads it", async () => {
+  await withBuildAsync(async ({ releaseFile, sha256, out }) => {
+    buildRelease({ releaseFile, sha256, out });
+    const server = createServer((request, response) => {
+      const file = join(out, "maker", decodeURIComponent(new URL(request.url, "http://127.0.0.1").pathname));
+      if (!existsSync(file)) {
+        response.writeHead(404).end();
+        return;
+      }
+      response.writeHead(200, { "content-type": file.endsWith(".json") ? "application/json" : "text/plain" }).end(readFileSync(file));
+    });
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const url = new URL(`http://127.0.0.1:${server.address().port}/index.json`);
+      const group = await groupFromIndex(url);
+      assert.deepEqual(group.agents.map((agent) => agent.path), ["agents/moai/manager-develop.md", "agents/moai/manager-spec.md"]);
+      assert.deepEqual(group.skills, ["skills/moai-run"]);
+      assert.equal(group.agents[1].model, "opus");
+    } finally {
+      server.close();
+    }
   });
 });

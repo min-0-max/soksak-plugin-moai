@@ -8,7 +8,7 @@ moai group은 이 plugin이 agents plugin의 extension point `agents.makers`에 
 
 이 plugin의 release build는 `ui` 폴더 옆에 `maker/index.json`을 써요. 이 파일은 고정된 revision의 upstream moai 원본을 가져와 교정한 copy의 agent와 스킬을 담아요.
 
-- `agents`: agent마다 `name`, `path`(`agents/` 아래의 상대 경로이며 `.md`로 끝나요), `cli`(`claude`)를 가져요.
+- `agents`: agent마다 `name`, `path`(`agents/` 아래의 상대 경로이며 `.md`로 끝나요. 예: `agents/moai/manager-spec.md`), `cli`(`claude`)를 가지고, 정의에 `model:` 줄이 있으면 `model`도 가져요. Build는 그 값을 index로 옮기고 복사한 정의에서는 줄을 지워요. `model:`이 세션 모델을 덮어쓰기 때문이에요(club.md, 측정 C4). Agents가 그 값을 세션에 적용해요(makers.md).
 - `skills`: `skills/` 아래의 상대 폴더이며 스킬마다 하나예요.
 
 Release build는 교정한 plugin 폴더를 `plugin/`으로도 써요. Group은 호출할 때 파일을 가져오거나, 설치하거나, 나열하지 않아요.

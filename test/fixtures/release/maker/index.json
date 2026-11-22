@@ -1,6 +1,6 @@
 {
   "agents": [
-    { "name": "manager-spec", "path": "agents/manager-spec.md", "cli": "claude" },
+    { "name": "manager-spec", "path": "agents/manager-spec.md", "cli": "claude", "model": "opus" },
     { "name": "manager-develop", "path": "agents/manager-develop.md", "cli": "claude" }
   ],
   "skills": ["skills/moai-run", "skills/moai-workflow-spec"]
