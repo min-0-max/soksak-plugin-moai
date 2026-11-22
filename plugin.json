@@ -23,7 +23,9 @@
   "contributes": {
     "agents.makers": [
       {
-        "range": "^0.0.1",
+        "id": "moai",
+        "name": "moai",
+        "range": "^0.1.0",
         "module": "ui/makers/moai.js"
       }
     ]

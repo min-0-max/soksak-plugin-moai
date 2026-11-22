@@ -25,8 +25,12 @@ test("plugin.json contributes one moai group to the extension point agents.maker
   const items = manifest.contributes["agents.makers"];
   assert.equal(items.length, 1, "the plugin contributes one group");
   const [item] = items;
-  assert.deepEqual(Object.keys(item).sort(), ["module", "range"]);
-  assert.equal(item.range, "^0.0.1");
+  // The item holds the fields of the point schema of agents (id and name) and the range, module and version fields of the contribution.
+  assert.deepEqual(Object.keys(item).sort(), ["id", "module", "name", "range"]);
+  assert.equal(item.id, "moai");
+  assert.equal(item.name, "moai");
+  // The range contains the version 0.1.0 of the point agents.makers that the agents plugin declares.
+  assert.equal(item.range, "^0.1.0");
   // A module is a JavaScript path inside the plugin: relative, without a leading slash, an empty, . or .. segment, and ending in .js.
   assert.match(item.module, /^ui\/[a-z0-9-]+(?:\/[a-z0-9-]+)*\.js$/);
   assert.equal(item.module.split("/").includes(".."), false, "the module leaves the plugin");
