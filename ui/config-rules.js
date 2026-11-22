@@ -8,6 +8,34 @@ const DEVELOPMENT_MODES = ["ddd", "tdd"]; // pkg/models/config.go:18-19 ValidDev
 const CONVENTIONS = ["auto", "conventional-commits", "angular", "karma"]; // validation.go:183-188 validGitConventionNames
 const MERGE_METHODS = ["squash", "merge", "rebase"]; // validation.go:260-264 validMergeMethods
 const MODES = ["manual", "personal", "team"]; // validation.go:291-296 git_strategy mode profiles
+const PROFILES = ["high", "medium", "low", "max"]; // profile.go:28-37 and 58-63: the legacy max is normalized to high, so it is accepted
+const OVERRIDE_MODELS = ["opus", "sonnet", "fable", "haiku", "inherit"]; // profile.go:106-112 validOverrideModels
+const OVERRIDE_EFFORTS = ["low", "medium", "high", "xhigh", "max"]; // profile.go:117-123 validOverrideEfforts
+const RETAINED_AGENTS = [
+  "manager-spec", "plan-auditor", "sync-auditor", "manager-develop", "super-advisor", "manager-design", "manager-lead",
+  "builder-harness", "e2e-tester", "manager-docs", "manager-git", "manager-todo", "Explore",
+]; // profile.go:133-147 retainedAgentNames
+// The 41 paths that validation.go:317-383 checks for dynamic tokens. Other string paths are not checked by moai.
+const DYNAMIC_TOKEN_FIELDS = [
+  "user.name",
+  "language.conversation_language", "language.conversation_language_name", "language.agent_prompt_language",
+  "language.git_commit_messages", "language.code_comments", "language.documentation", "language.error_messages",
+  "quality.development_mode", "quality.ddd_settings.max_transformation_size",
+  "system.version", "system.log_level", "system.log_format",
+  "git_strategy.branch_prefix", "git_strategy.commit_style",
+  "git_strategy.manual.workflow", "git_strategy.manual.environment", "git_strategy.manual.commit_style.format",
+  "git_strategy.manual.hooks.pre_commit", "git_strategy.manual.hooks.pre_push", "git_strategy.manual.hooks.commit_msg",
+  "git_strategy.personal.workflow", "git_strategy.personal.environment", "git_strategy.personal.branch_prefix",
+  "git_strategy.personal.commit_style.format", "git_strategy.personal.hooks.pre_commit",
+  "git_strategy.personal.hooks.pre_push", "git_strategy.personal.hooks.commit_msg",
+  "git_strategy.team.workflow", "git_strategy.team.environment", "git_strategy.team.branch_prefix",
+  "git_strategy.team.commit_style.format", "git_strategy.team.hooks.pre_commit", "git_strategy.team.hooks.pre_push",
+  "git_strategy.team.hooks.commit_msg",
+  "git_convention.convention", "git_convention.auto_detection.fallback",
+  "llm.default_model", "llm.quality_model", "llm.speed_model",
+];
+// validation.go:20-24 dynamicTokenPatterns: ${VAR}, {{VAR}} and $VAR
+const DYNAMIC_TOKEN_PATTERNS = [/\$\{[^}]+\}/, /\{\{[^}]+\}\}/, /\$[A-Z_][A-Z0-9_]*/];
 
 const error = (field, message) => ({ field, message });
 
@@ -43,6 +71,17 @@ function glmBaseUrl(value) {
   if (url.hostname === "") return error("llm.glm.base_url", "URL has no host");
   return null;
 }
+
+// dynamicTokenOf returns the first token of a value (validation.go:385-400 checkStringField), or null.
+function dynamicTokenOf(value) {
+  for (const pattern of DYNAMIC_TOKEN_PATTERNS) {
+    const match = value.match(pattern);
+    if (match) return match[0];
+  }
+  return null;
+}
+
+const valueAt = (object, path) => path.split(".").reduce((node, key) => node?.[key], object);
 
 // validateSections returns every rule violation of the sections, in the order of validation.go.
 // `sections` maps a section name to its parsed object, for example { quality: {...}, git_convention: {...} }.
@@ -95,6 +134,40 @@ export function validateSections(sections) {
   // validateGLMBaseURL, validation.go:79-105
   const base = glmBaseUrl(llm.glm?.base_url);
   if (base) errors.push(base);
+
+  // NormalizeProfile and IsValidProfile (profile.go:58-71) and validateProfile (profile.go:154-168); the value is trimmed
+  const profile = typeof llm.profile === "string" ? llm.profile.trim() : llm.profile;
+  if (!isAbsent(profile) && !PROFILES.includes(profile)) {
+    errors.push(error("llm.profile", `profile ${profile} is not in the closed set {high, medium, low}`));
+  }
+
+  // validateAgentOverrides, profile.go:171-201 (the map is read in its key order)
+  for (const [agent, override] of Object.entries(llm.agent_overrides ?? {})) {
+    if (!RETAINED_AGENTS.includes(agent)) {
+      errors.push(error(`llm.agent_overrides.${agent}`, `agent ${agent} is not in the retained agent catalog`));
+      continue;
+    }
+    const model = typeof override?.model === "string" ? override.model.trim() : "";
+    if (model !== "" && !OVERRIDE_MODELS.includes(model)) {
+      errors.push(error(`llm.agent_overrides.${agent}.model`, `model ${model} is not in the valid set {${OVERRIDE_MODELS.join(", ")}}`));
+    }
+    const effort = typeof override?.effort === "string" ? override.effort.trim() : "";
+    if (effort !== "" && !OVERRIDE_EFFORTS.includes(effort)) {
+      errors.push(error(`llm.agent_overrides.${agent}.effort`, `effort ${effort} is not in the valid set {${OVERRIDE_EFFORTS.join(", ")}}`));
+    }
+  }
+
+  // validateDynamicTokens, validation.go:317-383 over the 41 fields; a present non-string value is a type error
+  for (const field of DYNAMIC_TOKEN_FIELDS) {
+    const value = valueAt(sections, field);
+    if (value === undefined || value === null || value === "") continue;
+    if (typeof value !== "string") {
+      errors.push(error(field, "must be a string"));
+      continue;
+    }
+    const token = dynamicTokenOf(value);
+    if (token) errors.push(error(field, `contains unexpanded dynamic token: ${token}`));
+  }
 
   return errors;
 }

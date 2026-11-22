@@ -90,3 +90,43 @@ test("a value of the wrong type is an error that names the field, not a silent d
     { field: "quality.test_coverage_target", message: "must be a number" },
   ]);
 });
+
+test("llm.profile accepts high, medium, low and the legacy max, which means high", () => {
+  for (const profile of ["high", "medium", "low", "max", " low "]) {
+    assert.deepEqual(validateSections({ llm: { profile } }), [], profile);
+  }
+  assert.deepEqual(validateSections({ llm: { profile: "ultra" } }), [
+    { field: "llm.profile", message: "profile ultra is not in the closed set {high, medium, low}" },
+  ]);
+});
+
+test("llm.agent_overrides names only retained agents, and their model and effort values from the closed sets", () => {
+  assert.deepEqual(
+    validateSections({ llm: { agent_overrides: { "manager-spec": { model: "sonnet", effort: "xhigh" }, "Explore": {} } } }),
+    [],
+  );
+  assert.deepEqual(validateSections({ llm: { agent_overrides: { "manager-unknown": {} } } }), [
+    { field: "llm.agent_overrides.manager-unknown", message: "agent manager-unknown is not in the retained agent catalog" },
+  ]);
+  assert.deepEqual(validateSections({ llm: { agent_overrides: { "manager-spec": { model: "gpt" } } } }), [
+    { field: "llm.agent_overrides.manager-spec.model", message: "model gpt is not in the valid set {opus, sonnet, fable, haiku, inherit}" },
+  ]);
+  assert.deepEqual(validateSections({ llm: { agent_overrides: { "manager-spec": { effort: "ultra" } } } }), [
+    { field: "llm.agent_overrides.manager-spec.effort", message: "effort ultra is not in the valid set {low, medium, high, xhigh, max}" },
+  ]);
+});
+
+test("a string value with an unexpanded dynamic token is an error, for each token form", () => {
+  for (const value of ["${HOME}/x", "{{name}}", "$PATH"]) {
+    assert.deepEqual(validateSections({ user: { name: value } }), [
+      { field: "user.name", message: `contains unexpanded dynamic token: ${value.match(/\$\{[^}]+\}|\{\{[^}]+\}\}|\$[A-Z_][A-Z0-9_]*/)[0]}` },
+    ], value);
+  }
+  assert.deepEqual(validateSections({ user: { name: "Min" }, git_strategy: { team: { hooks: { pre_push: "make $CHECK" } } } }), [
+    { field: "git_strategy.team.hooks.pre_push", message: "contains unexpanded dynamic token: $CHECK" },
+  ]);
+});
+
+test("a dynamic token in a path that moai does not check is not an error", () => {
+  assert.deepEqual(validateSections({ user: { email: "$NOT_CHECKED" } }), []);
+});
