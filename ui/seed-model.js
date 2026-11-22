@@ -5,6 +5,13 @@
 // (flag defaults), internal/cli/init_gitdetect.go (detectGitConfig and hostFromRemoteURL), internal/config/defaults.go
 // (DefaultTestCoverageTarget), pkg/models/lang.go (LangNameMap and GetLanguageName).
 
+import { createEngine } from "./vendor/go-template.js";
+
+// Renderer candidates checked on npm (2026-11-22). @promptctl/go-template-js 0.12.0 (MIT, published 2026-11-02, pure ESM, Go
+// text/template syntax with custom functions) is used: its output for the eight seed templates equals the output of the previous
+// renderer, which handles the same syntax. @evertdespiegeleer/go-template 1.0.3 (ISC) wraps the Go engine as WebAssembly, and its
+// parse call is asynchronous, so the page could not render with it synchronously. gotemplate-node 0.7.6 (MIT, last modified
+// 2023-02-24) converts templates to JavaScript and declares typescript and esbuild as dependencies, so it is not kept for this use.
 const GITHUB_HOST = "github.com";
 
 // LANGUAGE_NAMES is pkg/models/lang.go LangNameMap. An application locale outside this set is an error.
@@ -108,29 +115,22 @@ export function templateValues({ projectName, locale, git, createdAt, version, g
   };
 }
 
-function truthy(value) {
-  return !(value === undefined || value === null || value === "" || value === 0 || value === false);
-}
+// posixPath (template/renderer.go:27-29) replaces each backslash with a slash.
+const engine = createEngine({
+  fromString: (text) => text,
+  isT: () => false,
+  funcs: {
+    posixPath: { fn: (value) => String(value).replaceAll("\\", "/"), argTypes: ["string"], arity: { kind: "exact" }, returnType: "string" },
+  },
+});
 
-// renderTemplate renders the seed template constructs that the release uses: {{.Field}}, {{posixPath .Field}} and
-// {{if .Field}}...{{end}} (not nested).
-// A field without a value and any other construct is an error, so no placeholder is left in a seeded file.
+// renderTemplate renders a seed template with the engine. Every field that the template names must have a value: a missing
+// field is an error that names it, so no placeholder is left in a seeded file.
 export function renderTemplate(text, values) {
-  const ifBlock = /\{\{if \.(\w+)\}\}([\s\S]*?)\{\{end\}\}/g;
-  const withBlocks = text.replace(ifBlock, (match, name, body) => {
-    if (!Object.hasOwn(values, name)) throw new Error(`template field ${name} has no value`);
-    return truthy(values[name]) ? body : "";
-  });
-  const rendered = withBlocks
-    // posixPath (template/renderer.go:27-29) replaces each backslash with a slash
-    .replace(/\{\{posixPath \.(\w+)\}\}/g, (match, name) => {
+  for (const action of text.match(/\{\{[^}]*\}\}/g) ?? []) {
+    for (const [, name] of action.matchAll(/\.(\w+)/g)) {
       if (!Object.hasOwn(values, name)) throw new Error(`template field ${name} has no value`);
-      return String(values[name]).replaceAll("\\", "/");
-    })
-    .replace(/\{\{\.(\w+)\}\}/g, (match, name) => {
-      if (!Object.hasOwn(values, name)) throw new Error(`template field ${name} has no value`);
-      return String(values[name]);
-    });
-  if (rendered.includes("{{")) throw new Error("template uses an unsupported construct");
-  return rendered;
+    }
+  }
+  return engine.parse(text).evaluate(values).join("");
 }

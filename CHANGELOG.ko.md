@@ -3,6 +3,7 @@
 [English](CHANGELOG.md)
 
 - M2-2a: 시드 값과 renderer예요. `ui/seed-model.js`가 `.moai` template 8개의 값을 프로젝트, git 설정, 응용 프로그램 locale, init 기본값에서 정하고 렌더링해요. Build는 release의 `.moai` 폴더를 렌더링하지 않은 채 `maker/seed/.moai`로 실어요.
+- M2-2c: 시드 renderer를 vendor 빌드로 묶은 `@promptctl/go-template-js` 0.12.0으로 바꿨어요. 로컬 renderer를 대체하며, 8개 시드 template의 출력은 같고 값이 없는 필드는 이름과 함께 여전히 거부해요. 후보는 npm에서 확인했고 이유는 `ui/seed-model.js`에 있어요.
 - M2-2: 코드 없이 보류했어요. 시드는 release의 `.moai/` 폴더예요. 그중 파일 8개는 `init`이 contract에 없는 값으로 렌더링하는 template이에요. 일부만 시드하면 config section이 빠지므로 아무것도 쓰지 않아요.
 - M2-3: Build가 agent의 `model:`을 index 항목으로 옮기고 복사한 정의에서는 줄을 지워요(club.md, 측정 C4). Group 모듈이 값을 검사하고 돌려줘요. Build는 index 경로를 group이 검사하는 `agents/moai/<file>`와 `skills/<folder>` 형태로 써요. 빌드한 index를 group 모듈에 넘기는 test가 있어요.
 - M2-4: Build가 옮긴 hook 명령의 fallback을 `CLAUDE_PROJECT_DIR`에서 log 폴더를 정하도록 고쳐서, 빠진 script의 log가 프로젝트 폴더에 남아요. Test는 `test/release-build.test.mjs`가 빠진 script를 bash로 실행해요.

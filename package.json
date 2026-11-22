@@ -25,6 +25,7 @@
     "release": "node scripts/build-release.mjs"
   },
   "devDependencies": {
+    "@promptctl/go-template-js": "0.12.0",
     "@soksak/kit": "https://github.com/soksak-app/kit/releases/download/v0.0.14/soksak-kit-0.0.14.tgz",
     "esbuild": "0.28.2",
     "yaml": "2.9.1"

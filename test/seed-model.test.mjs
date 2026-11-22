@@ -72,7 +72,8 @@ test("renderTemplate replaces fields and keeps a block only when the field is se
 test("renderTemplate refuses a field that has no value", () => {
   assert.throws(() => renderTemplate("x: {{.Missing}}", {}), /Missing/);
   assert.throws(() => renderTemplate("{{if .Missing}}x{{end}}", {}), /Missing/);
-  assert.throws(() => renderTemplate("{{range .Items}}x{{end}}", {}), /unsupported/);
+  assert.throws(() => renderTemplate("{{nosuch .Name}}", { Name: "x" }), /nosuch/);
+  assert.equal(renderTemplate("{{range .Items}}<{{.}}>{{end}}", { Items: ["a", "b"] }), "<a><b>");
 });
 
 test("renderTemplate applies posixPath, which replaces backslashes with slashes (template/renderer.go:27-29)", () => {
