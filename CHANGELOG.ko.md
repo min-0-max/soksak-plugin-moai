@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- M5: group module `ui/makers/moai.js`가 `group()`을 내보내요. 이 함수는 plugin modules 경로로 배포된 `maker/index.json`을 읽고, agents `makers.md`의 moai group을 돌려줘요. `clis` `claude`, `plugin` `plugin`, `variables` `MOAI_HOME={home}/.moai`, `path` `bin`, `folders` `.moai/`, 규칙 한 줄을 담고 port는 없어요. 모양이 다른 index는 index와 field를 적어 거부해요. Package `files`는 `maker`를 실어요. Group test는 module이 없을 때 실패한 뒤(Red), 배포 모양의 fixture를 HTTP로 제공해서 3/3 통과해요(Green). Manifest test는 `maker` 항목이 없을 때 실패한 뒤 통과해요. Group은 `docs/group.ko.md`에 문서화했어요.
 - M6: moai 기여 item이 agents가 version 0.1.0으로 선언한 `agents.makers` point(`extends.makers`, 필수 string `id`와 `name`의 item schema)와 맞아요. Item은 `id` `moai`, `name` `moai`, `range` `^0.1.0`(0.1.0을 포함해요)과 module을 가져요. Manifest test는 이전 range `^0.0.1`의 item에서 실패한 뒤, 10/10 통과해요.
 - M3: manifest가 최상위 `mark`(`moai`)와 `icon`, 그리고 `surface` composition을 선언해요. composition은 page `ui/web.html`의 `view`이고, document region `moai-web`(`input` `native`)을 가져요. page는 그 region의 element를 가지고 script는 없어요. Manifest test의 field 목록에 `mark`, `icon`, `surface`를 더했어요. surface가 그 field를 추가하기 때문이에요. Surface test는 surface가 없을 때 실패하고, 그 뒤 plugin의 test 10개가 통과해요.
 - M1: manifest가 `agents`에 대한 `dependencies`를 `^0.0.1`로 선언하고, `agents.makers`에 module `ui/makers/moai.js`로 기여 하나를 선언해요. 이 module은 M5가 써요. Range는 `agents` release가 point를 선언할 때까지 임시값이에요. manifest test는 manifest가 없을 때 실패하고, 그 뒤 5/5 통과해요.

@@ -43,3 +43,8 @@ test("plugin.json extends no extension point, because the moai plugin is a contr
 test("package.json publishes the manifest that the release holds", () => {
   assert.ok(pkg.files.includes("plugin.json"), "package.json files does not list plugin.json");
 });
+
+test("package.json publishes the group module and the shipped index of the maker release", () => {
+  assert.ok(pkg.files.includes("ui"), "package.json files does not list ui");
+  assert.ok(pkg.files.includes("maker"), "package.json files does not list maker, the folder of the shipped index");
+});
