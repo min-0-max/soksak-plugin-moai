@@ -1,34 +1,33 @@
-// The SPEC list model of the moai surface. Its requests and replies are the list operation of the files sidecar
+// The request and reply model of the moai surface. Requests and replies are the list and watch operations of the files sidecar
 // (core docs/spec/sidecars.md, sidecar @soksak/sidecar-files); the project root is the root of the sidecar session.
 
-const SPECS_PATH = ".moai/specs";
+export const SPECS_PATH = ".moai/specs";
 const SPEC_FOLDER = /^SPEC-[A-Z0-9]+(?:-[A-Z0-9]+)*$/;
 
-// The paths that the page watches, from the most specific to the project root. The files sidecar watch fails for a path that
-// does not exist, so the page watches the first path of the chain that exists, and moves to the next one when the watch fails.
-const WATCH_CHAIN = [SPECS_PATH, ".moai", ""];
+// The paths that the page may watch: the moai folder, its state and SPEC folders, and the state folders of the records. A watch
+// is not recursive, so each folder that holds records is listed. The page watches the candidates that exist.
+export const WATCH_CANDIDATES = [".moai", ".moai/state", SPECS_PATH, ".moai/state/todo", ".moai/state/goal", ".moai/state/verify"];
 
-// The watch request of one path of the chain. The sidecar then sends {changed} without id for each change of its entries.
-export function watchSpecsRequest(id, path) {
-  return { operation: "watch", id, paths: [path] };
+// watchPathsOf returns the candidates that exist, in candidate order. With none, it returns the project root, so that the creation of
+// the moai folder is reported.
+export function watchPathsOf(existing) {
+  const paths = WATCH_CANDIDATES.filter((path) => existing.includes(path));
+  return paths.length > 0 ? paths : [""];
 }
 
-// The path of the chain that follows path, or null after the project root.
-export function nextWatchPath(path) {
-  const index = WATCH_CHAIN.indexOf(path);
-  if (index < 0) {
-    throw new Error(`watch path ${JSON.stringify(path)} is not in the watch chain`);
-  }
-  return index + 1 < WATCH_CHAIN.length ? WATCH_CHAIN[index + 1] : null;
+// The watch request of a set of paths. The sidecar then sends {changed} without id for each change of an entry of a watched folder.
+export function watchSpecsRequest(id, paths) {
+  return { operation: "watch", id, paths };
 }
 
-export function firstWatchPath() {
-  return WATCH_CHAIN[0];
+// The list request of one folder, relative to the project root. The id correlates the reply with this request.
+export function listRequest(id, path) {
+  return { operation: "list", id, path };
 }
 
-// The list request of the SPEC folder. The id correlates the reply with this request.
+// The list request of the SPEC folder.
 export function listSpecsRequest(id) {
-  return { operation: "list", id, path: SPECS_PATH };
+  return listRequest(id, SPECS_PATH);
 }
 
 // The SPEC folder names of a list reply in name order. A failed reply throws its error text; a reply without entries throws

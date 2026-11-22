@@ -3,7 +3,8 @@
 import { createViewBridge } from "@soksak/plugin-api/view";
 import { seedMoaiProject } from "./seed.js";
 import { programStdout } from "./program-reply.js";
-import { firstWatchPath, listSpecsRequest, nextWatchPath, specIds, watchSpecsRequest } from "./specs-model.js";
+import { listRequest, SPECS_PATH, specIds, watchPathsOf, watchSpecsRequest, WATCH_CANDIDATES } from "./specs-model.js";
+import { recordRows, STATE_FOLDERS } from "./state-records.js";
 import { specDetailRows } from "./spec-detail-model.js";
 import { checkSectionText, CHECKED_SECTIONS, parseSettingValue } from "./section-check.js";
 import { group } from "./makers/moai.js";
@@ -37,6 +38,10 @@ const settingsSave = document.getElementById("settings-save");
 const settingsStatus = document.getElementById("settings-status");
 const overviewSummary = document.getElementById("overview-summary");
 const overviewTabs = document.getElementById("overview-tabs");
+const factorySummary = document.getElementById("factory-summary");
+const factoryRecords = document.getElementById("factory-records");
+const monitorSummary = document.getElementById("monitor-summary");
+const monitorRecords = document.getElementById("monitor-records");
 // The agent names of the moai group, read once from the shipped index, and the last core.grid value of the tabs.
 let agentNames = null;
 let lastGrid = null;
@@ -45,11 +50,9 @@ let mustFixTotal = null;
 // Requests of the seed wait for their reply by id; the watch and list replies keep their own handlers.
 const pending = new Map();
 let counter = 0;
-let watchId = null;
-let watchPath = null;
-let listId = null;
-// Each refresh of the detail rows takes a number; a refresh that ends after a later one began is dropped.
+// Each refresh of the detail rows and of the refresh cycle takes a number; a cycle that ends after a later one began is dropped.
 let detailGeneration = 0;
+let refreshGeneration = 0;
 
 function nextId(prefix) {
   counter += 1;
@@ -151,30 +154,76 @@ function render(ids) {
   }));
 }
 
-// Requests the SPEC list. A reply answers the latest request only; an earlier reply is stale and is dropped.
-function requestList() {
-  listId = nextId("list");
-  sidecar.send(surface, listSpecsRequest(listId), []).catch((error) => showError("moai specs", error));
-}
-
-// Watches the first path of the chain from firstWatchPath on. A failed watch request moves to the next path.
-function requestWatch(path) {
-  watchPath = path;
-  watchId = nextId("watch");
-  sidecar.send(surface, watchSpecsRequest(watchId, path), []).catch((error) => showError("moai specs", error));
-}
-
-function onWatchReply(body) {
-  if (typeof body.error === "string") {
-    const next = nextWatchPath(watchPath);
-    if (next === null) {
-      showError("moai specs", new Error(`files sidecar could not watch the project root: ${body.error}`));
-      return;
-    }
-    requestWatch(next);
-    return;
+// Lists one moai folder. A folder that the sidecar reports as missing is absent, which is the answer for a project without that
+// folder; any other error is shown through the page error path and the folder counts as absent.
+async function listFolder(path) {
+  try {
+    return await request((id) => listRequest(id, path));
+  } catch (error) {
+    if (!/no such file/.test(error.message)) showError("moai list", error);
+    return null;
   }
-  requestList();
+}
+
+// Reads the files of one record folder: the file name and its text, and a read error keeps its row with the error text.
+async function readRecords(folder, listing) {
+  const files = listing.entries.filter((entry) => entry.directory === false);
+  return Promise.all(files.map(async (entry) => {
+    const path = `${folder}/${entry.name}`;
+    try {
+      const body = await request((id) => ({ operation: "read", id, path }));
+      return { name: entry.name, text: body.text };
+    } catch (error) {
+      return { name: entry.name, text: null, readError: error.message };
+    }
+  }));
+}
+
+// The tab summary of the screens of records: the moai tabs of core.grid, with the live ones. A record is not joined to a tab, because
+// no contract names the session of a tab.
+function tabSummary() {
+  if (agentNames === null || lastGrid === null) return "moai tabs not known yet";
+  const rows = moaiTabs(lastGrid, agentNames);
+  return `moai tabs: ${rows.length}, live: ${rows.filter((row) => row.live).length}`;
+}
+
+// Renders the records of one screen. A record that cannot be read or parsed keeps its row, and its error goes through showError.
+function renderRecords(summary, list, title, rows) {
+  summary.textContent = `${title}: ${rows.length} records; ${tabSummary()}; records are not joined to tabs`;
+  list.replaceChildren(...rows.map((row) => {
+    const item = document.createElement("li");
+    item.textContent = `${row.name}: ${row.error ?? JSON.stringify(row.value)}`;
+    return item;
+  }));
+  for (const row of rows) {
+    if (row.error !== null) showError(`moai ${title} ${row.name}`, new Error(row.error));
+  }
+}
+
+// One refresh cycle: list the moai folders, watch the ones that exist, read the records and the SPECs, and render each screen from
+// the replies. Each sidecar change starts a cycle; no timer starts one.
+async function refresh() {
+  const generation = ++refreshGeneration;
+  const listings = new Map();
+  for (const path of WATCH_CANDIDATES) listings.set(path, await listFolder(path));
+  const existing = WATCH_CANDIDATES.filter((path) => listings.get(path) !== null);
+  await request((id) => watchSpecsRequest(id, watchPathsOf(existing)));
+  const specListing = listings.get(SPECS_PATH);
+  const specs = specListing === null ? [] : specIds(specListing);
+  const records = {};
+  for (const [kind, folder] of Object.entries(STATE_FOLDERS)) {
+    const listing = listings.get(folder);
+    records[kind] = listing === null ? [] : await readRecords(folder, listing);
+  }
+  if (generation !== refreshGeneration) return;
+  render(specs);
+  renderRecords(factorySummary, factoryRecords, "factory", recordRows(records.todo));
+  const monitorFiles = [
+    ...records.goal.map((file) => ({ ...file, name: `goal/${file.name}` })),
+    ...records.verify.map((file) => ({ ...file, name: `verify/${file.name}` })),
+  ];
+  renderRecords(monitorSummary, monitorRecords, "monitor", recordRows(monitorFiles));
+  refreshDetail(specs).catch((error) => showError("moai spec audit", error));
 }
 
 function onMessage(body) {
@@ -189,31 +238,13 @@ function onMessage(body) {
     else waiter.resolve(body);
     return;
   }
-  // A change of a watched entry: the page lists again, and starts the watch chain again so that a created folder is watched.
+  // A change of a watched entry: a new cycle lists, watches and renders again, so a created folder is watched too.
   if (Object.hasOwn(body, "changed")) {
-    requestWatch(firstWatchPath());
+    refresh().catch((error) => showError("moai refresh", error));
     return;
   }
   // A watch failure after it started answers no request and carries no id.
-  if (!Object.hasOwn(body, "id")) {
-    showError("moai specs", new Error(`files sidecar watch failed: ${String(body.error ?? "no error text")}`));
-    return;
-  }
-  if (body.id === watchId) {
-    onWatchReply(body);
-    return;
-  }
-  if (body.id === listId) {
-    let ids;
-    try {
-      ids = specIds(body);
-    } catch (error) {
-      showError("moai specs", error);
-      return;
-    }
-    render(ids);
-    refreshDetail(ids).catch((error) => showError("moai spec audit", error));
-  }
+  showError("moai specs", new Error(`files sidecar watch failed: ${String(body.error ?? "no error text")}`));
 }
 
 // Saves one value of a section file: the key names the section and the field path, as quality.test_coverage_target does. The file
@@ -280,8 +311,8 @@ async function start() {
     .catch((error) => showError("moai overview", error));
   await sidecar.on(surface, (body) => onMessage(body));
   await sidecar.onFailure(surface, (failure) => showError("moai specs", new Error(`files sidecar failed: ${failure}`)));
-  requestWatch(firstWatchPath());
   seedProject().catch((error) => showError("moai seed", error));
+  refresh().catch((error) => showError("moai refresh", error));
 }
 
 start().catch((error) => showError("moai specs", error));

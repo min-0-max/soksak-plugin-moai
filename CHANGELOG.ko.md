@@ -3,6 +3,7 @@
 [English](CHANGELOG.md)
 
 - M14: surface page가 각 SPEC의 `spec.md`를 읽고 선언된 program `spec-audit`(`moai spec audit --json --base-dir .`)을 실행해서, SPEC마다 행 하나와 MUST-FIX 조치를 보여 줘요(`ui/spec-detail-model.js`). 행의 오류는 `showError`로 보내요. 테스트: `test/spec-detail.test.mjs`(6개). Red: model이 없었어요.
+- M11, M12: factory와 monitor 섹션이 `.moai/state/todo`, `goal`, `verify`의 기록을 파일 이름으로 보여 줘요. core.grid의 moai tab 수도 함께요. 기록을 tab에 잇는 lane은 계약을 기다려요(M11, M12). 페이지는 존재하는 moai 폴더 집합을 watch해요(M19). 테스트: `test/state-records.test.mjs`.
 - M10: overview 섹션이 `core.grid`의 moai tab(moai group agent의 params.role)을 program 상태와 마지막 감사의 MUST-FIX 합계와 함께 보여 줘요. `ui/moai-tabs.js`와 `test/moai-tabs.test.mjs`(6개 테스트). Red: module이 없었어요.
 - M16: release build가 moai-adk v3.1.2의 darwin-arm64 바이너리 release 파일을 `release/upstream.json`에 고정하고, sha256을 검사해 `bin/moai`를 써요. Program `config-load`와 `spec-audit`는 `plugin:bin/moai`를 쓰고, core F1071-2를 기다려요. 테스트: `test/release-build.test.mjs`, `test/manifest.test.mjs`.
 - M15-4: surface page의 설정 폼이 section 값 하나를 써요. `ui/section-check.js`가 쓰기 전에 새 텍스트를 값 규칙과 llm 타입 검사로 확인해요. 검사나 로드가 실패하면 이전 텍스트로 되돌리고 오류를 보여 줘요. 테스트: `test/section-check.test.mjs`(7개)와 저장의 검사 사례. Red: module이 없었어요.
