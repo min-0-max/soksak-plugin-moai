@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- M2: 코드 없이 보류했어요. 고정 후보는 moai-adk v3.1.2(draft가 아닌 가장 새 release)예요. 그 release에는 `plugin/` 생성기가 없고, `settings.local.json` 쓰기는 fork가 필요하며, moai group 구성은 정해져 있지 않아요. Checklist에 원인 세 가지와 재개 조건을 기록했어요.
 - M15-2e: `ui/llm-section-rules.js`에 llm section 엄격한 타입 검사를 더했어요. `ValidateLLMYAMLSection`을 llm 필드 타입, yaml.v3 decode 규칙, `agent_overrides_consume`의 `!!bool` 규칙에 맞춰 옮겼고 각 항목에 moai-adk 줄을 적었어요. Test는 `test/llm-section.test.mjs`(7개)예요. Red는 module이 없어서 실패했어요. Vendor 항목은 `isMap`, `isScalar`, `isSeq`를 export해요.
 - M15-2d: 코드 없이 닫았어요. Console 규칙 `validatePrefs`, `validateProjectConfig`, `validateProjectNestedConfig`는 profile preferences 파일에 적용되거나 M15-2 집합을 반복해요. 남은 엄격한 llm 검사는 M15-2e예요.
 - M15-2c: `ui/config-rules.js`에 session 기본값 규칙을 더했어요. Mode closed set과 backend별 cell의 model, effort를 다루고 session_defaults.go 근거 줄을 적어요. Test는 `test/config-rules.test.mjs`(15개)예요. Red는 test 2개가 먼저 실패했어요.

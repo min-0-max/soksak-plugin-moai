@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- M2: Held without code. The upstream pin candidate is moai-adk v3.1.2 (newest non-draft release). The release has no `plugin/` generator, the `settings.local.json` writes need a fork, and the moai group composition is not stated. The checklist records the three causes and the resume conditions.
 - M15-2e: The strict llm section check `ui/llm-section-rules.js` ports `ValidateLLMYAMLSection` over the llm field types, the yaml.v3 decode kinds and the `!!bool` rule of `agent_overrides_consume`, each with its moai-adk line. Tests: `test/llm-section.test.mjs` (7 tests); Red: the module was missing. The vendor entry exports `isMap`, `isScalar` and `isSeq`.
 - M15-2d: Closed without code. The console rules `validatePrefs`, `validateProjectConfig` and `validateProjectNestedConfig` apply to the profile preferences file or repeat the M15-2 sets; the remaining strict llm check is M15-2e.
 - M15-2c: The session default rules join `ui/config-rules.js`: the mode closed set and each backend cell's model and effort, with their session_defaults.go source lines. Tests: `test/config-rules.test.mjs` (15 tests); Red: two tests failed first.
