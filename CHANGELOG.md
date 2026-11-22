@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- M15-3: The save flow `ui/section-save.js` writes one section value with `expect`, runs the declared program `config-load` (`moai doctor config dump --format json`), and on a failed run restores the previous text and reports moai's error. `plugin.json` declares the program; `ui/program-reply.js` reads the run reply. Tests: `test/section-save.test.mjs`, the manifest test. Red: the module and the declaration were missing. The settings screen is M15-4.
 - M2-2a: The seed values and renderer: `ui/seed-model.js` derives the values of the eight `.moai` templates from the project, the git config, the application locale and the init defaults, and renders them. The build ships the release `.moai` folder unrendered as `maker/seed/.moai`.
 - M2-2d: The plugin requires `@soksak/sidecar-files` `>=0.0.12`, the release with `createFolder` that the seed uses.
 - M2-2b: The moai page seeds `.moai/` at each page start through the files sidecar: folders by `createFolder`, missing files by `write` with `expect: null`; existing files are kept and reported; an unsupported locale is refused by name with the supported set. The sidecar release with `createFolder` is held (M2-2d).

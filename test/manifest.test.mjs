@@ -8,7 +8,7 @@ const manifest = JSON.parse(read("plugin.json"));
 const pkg = JSON.parse(read("package.json"));
 
 // The plugin declares only the fields of the plugin manifest that it uses at this stage: the surface adds its tab fields and its composition.
-const FIELDS = ["id", "name", "description", "dependencies", "contributes", "mark", "icon", "surface"];
+const FIELDS = ["id", "name", "description", "dependencies", "contributes", "mark", "icon", "surface", "programs"];
 
 test("plugin.json declares only the manifest fields of this stage", () => {
   assert.deepEqual(Object.keys(manifest).filter((field) => !FIELDS.includes(field)), []);
@@ -34,6 +34,10 @@ test("plugin.json contributes one moai group to the extension point agents.maker
   // A module is a JavaScript path inside the plugin: relative, without a leading slash, an empty, . or .. segment, and ending in .js.
   assert.match(item.module, /^ui\/[a-z0-9-]+(?:\/[a-z0-9-]+)*\.js$/);
   assert.equal(item.module.split("/").includes(".."), false, "the module leaves the plugin");
+});
+
+test("plugin.json declares the moai programs that the pages run by name, each as a bare name and literal arguments", () => {
+  assert.deepEqual(manifest.programs["config-load"], { program: "moai", args: ["doctor", "config", "dump", "--format", "json"] });
 });
 
 test("plugin.json extends no extension point, because the moai plugin is a contributor only", () => {

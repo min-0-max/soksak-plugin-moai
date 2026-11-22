@@ -10,6 +10,12 @@
       "page": "ui/specs.html"
     }
   },
+  "programs": {
+    "config-load": {
+      "program": "moai",
+      "args": ["doctor", "config", "dump", "--format", "json"]
+    }
+  },
   "dependencies": {
     "agents": "^0.0.1",
     "@soksak/sidecar-files": ">=0.0.12"

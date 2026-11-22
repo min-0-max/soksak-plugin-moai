@@ -23,9 +23,10 @@ export function setSectionValue(text, path, value) {
   return doc.toString();
 }
 
-// sectionWriteRequest writes the whole section text. `expect` is the version that the read reply or the previous write returned.
-export function sectionWriteRequest(id, section, text, expect) {
-  return { operation: "write", id, path: sectionPath(section), text, expect, bom: false };
+// sectionWriteRequest writes the whole section text. `expect` is the version that the read reply or the previous write returned,
+// and `bom` tells whether the file starts with the byte order mark that its read reply reported.
+export function sectionWriteRequest(id, section, text, expect, bom = false) {
+  return { operation: "write", id, path: sectionPath(section), text, expect, bom };
 }
 
 // sectionWriteReply returns the version of the written bytes and throws the sidecar error text.
