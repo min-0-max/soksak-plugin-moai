@@ -1,0 +1,26 @@
+{
+  "name": "@soksak/plugin-moai",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.24.0",
+  "description": "moai plugin: the moai maker group for the agents plugin and the moai web surface.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/min-0-max/soksak-plugin-moai.git"
+  },
+  "engines": {
+    "soksak": "^0.0.41"
+  },
+  "files": [
+    "plugin.json",
+    "ui"
+  ],
+  "scripts": {
+    "test": "node --test --test-timeout=120000 test/"
+  },
+  "devDependencies": {
+    "@soksak/kit": "https://github.com/soksak-app/kit/releases/download/v0.0.14/soksak-kit-0.0.14.tgz"
+  }
+}
