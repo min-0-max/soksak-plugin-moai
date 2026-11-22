@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- M15-2: `ui/config-rules.js`의 값 규칙은 quality development mode와 백분율, git_convention convention과 범위, git_strategy merge method, `llm.glm.base_url`을 검사해요. 각 규칙은 moai-adk 근거 줄을 적어요. 잘못된 타입의 값은 오류예요. Test는 `test/config-rules.test.mjs`(9개)예요. Red는 module이 없어서 실패했어요.
 - M15-1: Section 수정 model `ui/section-edit-model.js`는 포함된 YAML 라이브러리로 moai section 파일의 값 하나를 바꿔요(`parseDocument`를 써서 다른 key와 주석을 유지해요). files sidecar `write` 요청은 `expect`와 응답 version으로 만들어요. Vendor 항목은 `parseDocument`를 export하고 `ui/vendor/yaml.js`를 다시 빌드했어요. Test는 `test/section-edit.test.mjs`예요. Red는 model 파일이 없어서 실패했어요. M2는 fork 대신 고정된 upstream release를 기다리고, fork 규칙은 `docs/spec/sources.ko.md`에 기록했어요.
 - M14: SPEC reader model: `ui/spec-audit-model.js`는 `moai spec audit --json` 출력을 읽어요(SPEC별 drift 발견과 MUST-FIX 조치). `ui/spec-frontmatter.js`는 vendor YAML 라이브러리 `ui/vendor/yaml.js`(yaml 2.9.1, 고정 버전, `scripts/build-vendor.mjs`로 빌드, `pnpm test`가 검사)로 `spec.md`의 SPEC 행을 만들어요. Model test는 없는 module에서 실패한 뒤(Red), 31개 test가 모두 통과해요(Green). 화면과 실행 호출은 core F1071을 기다려요.
 - M4: moai surface page가 M3의 web console을 대체해서 `.moai/specs`의 SPEC 폴더를 native 목록으로 보여 줘요. 목록은 `plugin.json`이 `^0.0.11`로 선언한 `@soksak/sidecar-files`의 `list` 작업으로 읽고, `changed` 이벤트마다 `watch` chain(`.moai/specs`, `.moai`, 프로젝트 root)으로 다시 받아요. Page는 timer를 시작하지 않아요. Surface test와 SPEC 목록 test는 이전 선언과 없는 module에서 실패하고(Red), timer guard는 넣은 `setInterval`에서 실패해요(Red). 그 뒤 21개 test가 모두 통과해요(Green). Web server, 그 경로, polling은 시작하거나 쓰지 않아요.
