@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- M2-2: 코드 없이 보류했어요. 시드는 release의 `.moai/` 폴더예요. 그중 파일 8개는 `init`이 contract에 없는 값으로 렌더링하는 template이에요. 일부만 시드하면 config section이 빠지므로 아무것도 쓰지 않아요.
 - M2-3: Build가 agent의 `model:`을 index 항목으로 옮기고 복사한 정의에서는 줄을 지워요(club.md, 측정 C4). Group 모듈이 값을 검사하고 돌려줘요. Build는 index 경로를 group이 검사하는 `agents/moai/<file>`와 `skills/<folder>` 형태로 써요. 빌드한 index를 group 모듈에 넘기는 test가 있어요.
 - M2-4: Build가 옮긴 hook 명령의 fallback을 `CLAUDE_PROJECT_DIR`에서 log 폴더를 정하도록 고쳐서, 빠진 script의 log가 프로젝트 폴더에 남아요. Test는 `test/release-build.test.mjs`가 빠진 script를 bash로 실행해요.
 - M2: Release build `scripts/build-release.mjs`가 moai-adk `v3.1.2`(`release/upstream.json`, sha256 확인)를 고정하고 `maker/`(`index.json`의 moai agent와 skill, 계정 설정)와 `plugin/hooks/`(`${CLAUDE_PLUGIN_ROOT}` 기준 hook 등록과 실행하는 script)를 써요. Test는 release 구조 fixture의 `test/release-build.test.mjs`예요. `pnpm run release`와 `make pack`이 build를 실행하고, `maker/`와 `plugin/`은 추적하지 않아요.
