@@ -13,6 +13,14 @@ The release build of this plugin writes `maker/index.json` beside the `ui` folde
 
 The release build also writes the corrected plugin folder as `plugin/`. The group does not fetch, install or list files at call time.
 
+The release build is `scripts/build-release.mjs` (`pnpm run release`). It reads the release pinned in `release/upstream.json` (moai-adk tag `v3.1.2`, with its sha256), refuses a release file whose sha256 differs, and writes:
+
+- `maker/index.json` with the moai agents (`.claude/agents/moai/*.md`, `name` from the frontmatter) and the moai skills (`.claude/skills/moai*/` that hold a `SKILL.md`), and `maker/agents`, `maker/skills` with those files;
+- `plugin/hooks/hooks.json`, which moves each hook registration of the release `.claude/settings.json` to `${CLAUDE_PLUGIN_ROOT}/hooks/moai/`, and `plugin/hooks/moai/` with the scripts those registrations run;
+- `maker/settings.json`, the settings of the release that are not hook registrations.
+
+A registration that runs a script outside `.claude/hooks/moai/` fails the build. The project `settings.local.json` that the hook code writes is not changed by this build: agents run with `--setting-sources user`, so claude does not read that file (club.md, measurements I4 and M5). The fallback of each registration command, which runs only when its script is missing, derives the log folder by matching `.claude/hooks/moai/` in the script path. The plugin path `${CLAUDE_PLUGIN_ROOT}/hooks/moai/` has no such segment, so that fallback cannot write its log; the build does not change the command, and this is a known gap.
+
 ## Group function
 
 `ui/makers/moai.js` exports `group()`. It reads `maker/index.json` through the plugin modules path, at `../../maker/index.json` relative to the module, and returns:

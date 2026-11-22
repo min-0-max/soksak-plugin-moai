@@ -13,6 +13,14 @@ moai group은 이 plugin이 agents plugin의 extension point `agents.makers`에 
 
 Release build는 교정한 plugin 폴더를 `plugin/`으로도 써요. Group은 호출할 때 파일을 가져오거나, 설치하거나, 나열하지 않아요.
 
+Release build는 `scripts/build-release.mjs`(`pnpm run release`)예요. `release/upstream.json`에 고정된 release(moai-adk tag `v3.1.2`와 sha256)를 읽고, sha256이 다른 release 파일는 거부하며, 다음을 써요.
+
+- `maker/index.json`: moai agent(`.claude/agents/moai/*.md`, `name`은 frontmatter에서 가져와요)와 moai skill(`SKILL.md`가 있는 `.claude/skills/moai*/`)이에요. 그 파일들은 `maker/agents`, `maker/skills`에 있어요.
+- `plugin/hooks/hooks.json`: release `.claude/settings.json`의 hook 등록을 `${CLAUDE_PLUGIN_ROOT}/hooks/moai/`로 옮겨요. `plugin/hooks/moai/`에는 그 등록이 실행하는 script가 있어요.
+- `maker/settings.json`: release 설정 중 hook 등록이 아닌 부분이에요.
+
+`.claude/hooks/moai/` 밖의 script를 실행하는 등록은 build를 실패시켜요. Hook 코드가 쓰는 프로젝트 `settings.local.json`은 이 build가 바꾸지 않아요. Agent는 `--setting-sources user`로 실행하므로 claude가 그 파일을 읽지 않아요(club.md, 측정 I4와 M5). 각 등록 명령의 fallback은 script가 없을 때만 실행되고, script 경로에서 `.claude/hooks/moai/`를 찾아 log 폴더를 정해요. Plugin 경로 `${CLAUDE_PLUGIN_ROOT}/hooks/moai/`에는 그 부분이 없어서 그 fallback은 log를 쓰지 못해요. Build는 명령을 바꾸지 않으며, 이것은 알려진 공백이에요.
+
 ## Group 함수
 
 `ui/makers/moai.js`는 `group()`을 내보내요. 이 함수는 plugin modules 경로로 `maker/index.json`을 읽어요. module 기준 `../../maker/index.json`이에요. 그리고 다음을 돌려줘요.

@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "command": "bash",
+            "args": ["-c", "[ -f \"$0\" ] && exec bash \"$0\"; exit 0", "${CLAUDE_PROJECT_DIR}/.claude/hooks/moai/handle-start.sh"],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "command": "bash",
+            "args": ["-c", "[ -f \"$0\" ] && exec bash \"$0\"; exit 0", "${CLAUDE_PROJECT_DIR}/.claude/hooks/moai/handle-start.sh"]
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {"type": "command", "command": "$CLAUDE_PROJECT_DIR/.moai/status_line.sh", "refreshInterval": 10},
+  "env": {"ENABLE_TOOL_SEARCH": "1"}
+}
