@@ -7,8 +7,8 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const manifest = JSON.parse(read("plugin.json"));
 const pkg = JSON.parse(read("package.json"));
 
-// The plugin declares only the fields of the plugin manifest that it uses at this stage.
-const FIELDS = ["id", "name", "description", "dependencies", "contributes"];
+// The plugin declares only the fields of the plugin manifest that it uses at this stage: the surface adds its tab fields and its composition.
+const FIELDS = ["id", "name", "description", "dependencies", "contributes", "mark", "icon", "surface"];
 
 test("plugin.json declares only the manifest fields of this stage", () => {
   assert.deepEqual(Object.keys(manifest).filter((field) => !FIELDS.includes(field)), []);
