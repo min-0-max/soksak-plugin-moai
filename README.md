@@ -11,4 +11,8 @@ make check                                  # document and command checks of the
 make pack OUT=<folder>                      # the plugin release
 ```
 
+## Bundled moai binary
+
+`make pack` writes `bin/moai`, the moai binary of moai-adk v3.1.2 (`darwin-arm64`), from the release file `moai-adk_3.1.2_darwin_arm64.tar.gz` at `https://github.com/modu-ai/moai-adk/releases/download/v3.1.2/`. The build checks the sha256 pinned in `release/upstream.json` before it copies the file. moai-adk is licensed under Apache-2.0: `bin/moai.LICENSE` is the LICENSE of that release file, and `bin/moai.NOTICE` is its NOTICE, which the release file does not hold, so the build writes none.
+
 The application validates `plugin.json` when it installs the release. The checklist is [docs/features.md](docs/features.md). The source and fork rule is [docs/spec/sources.md](docs/spec/sources.md).

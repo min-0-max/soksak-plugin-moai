@@ -7,6 +7,7 @@
 //   plugin/hooks/hooks.json      the hook registrations, with the scripts under ${CLAUDE_PLUGIN_ROOT}/hooks/moai/
 //   plugin/hooks/moai/    the hook scripts that a registration runs
 //   bin/moai              the moai binary of the pinned darwin-arm64 asset of the same release (the program `plugin:bin/moai`)
+//   bin/moai.LICENSE      the LICENSE of the release file, and bin/moai.NOTICE its NOTICE when the release file holds one
 // The release file and the binary release file must equal their sha256 pins before anything is extracted or written. The build reads no other network address.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -85,10 +86,16 @@ export function buildBinary({ file, sha256, out }) {
     execFileSync("tar", ["-xzf", file, "-C", work]);
     const source = join(work, "moai");
     if (!existsSync(source)) throw new Error(`binary release file holds no moai file at its top: ${file}`);
+    // moai-adk is Apache-2.0: the redistributed binary carries the LICENSE of its release file, and the NOTICE when the release file has one.
+    const license = join(work, "LICENSE");
+    if (!existsSync(license)) throw new Error(`binary release file holds no LICENSE at its top: ${file}`);
     rmSync(join(out, "bin"), { recursive: true, force: true });
     mkdirSync(join(out, "bin"), { recursive: true });
     copyFileSync(source, join(out, "bin", "moai"));
     chmodSync(join(out, "bin", "moai"), 0o755);
+    copyFileSync(license, join(out, "bin", "moai.LICENSE"));
+    const notice = join(work, "NOTICE");
+    if (existsSync(notice)) copyFileSync(notice, join(out, "bin", "moai.NOTICE"));
   } finally {
     rmSync(work, { recursive: true, force: true });
   }

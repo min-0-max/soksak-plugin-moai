@@ -11,4 +11,8 @@ make check                                  # 고정된 kit release의 document�
 make pack OUT=<folder>                      # plugin release
 ```
 
+## 포함된 moai 바이너리
+
+`make pack`은 `bin/moai`를 쓰며, 이는 moai-adk v3.1.2(`darwin-arm64`)의 moai 바이너리예요. 원본은 `https://github.com/modu-ai/moai-adk/releases/download/v3.1.2/`의 release 파일 `moai-adk_3.1.2_darwin_arm64.tar.gz`예요. Build는 파일을 복사하기 전에 `release/upstream.json`에 고정된 sha256을 검사해요. moai-adk는 Apache-2.0 라이선스예요. `bin/moai.LICENSE`는 그 release 파일의 LICENSE이고, `bin/moai.NOTICE`는 그 release 파일의 NOTICE예요. Release 파일에 NOTICE가 없어서 build는 NOTICE를 쓰지 않아요.
+
 Application은 release를 설치할 때 `plugin.json`을 검증해요. Checklist는 [docs/features.md](docs/features.md)예요. Source와 fork 규칙은 [docs/spec/sources.md](docs/spec/sources.md)예요.

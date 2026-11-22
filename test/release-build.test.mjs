@@ -26,12 +26,18 @@ function releaseFileOfFixture(work) {
 
 // The binary release file of the fixture: a file named moai at its top, as the pinned asset holds it. The fixture binary is a script that
 // prints its own name, so the test runs the copied file.
-function binaryOfFixture(work) {
+function binaryOfFixture(work, { notice = false } = {}) {
   const folder = join(work, "binary-src");
   mkdirSync(folder, { recursive: true });
   writeFileSync(join(folder, "moai"), "#!/bin/sh\necho fixture-moai\n");
-  const file = join(work, "moai-adk_fixture_darwin_arm64.tar.gz");
-  execFileSync("tar", ["-czf", file, "-C", folder, "moai"]);
+  writeFileSync(join(folder, "LICENSE"), "fixture Apache License 2.0 text\n");
+  const names = ["moai", "LICENSE"];
+  if (notice) {
+    writeFileSync(join(folder, "NOTICE"), "fixture NOTICE text\n");
+    names.push("NOTICE");
+  }
+  const file = join(work, notice ? "moai-adk_fixture_notice_darwin_arm64.tar.gz" : "moai-adk_fixture_darwin_arm64.tar.gz");
+  execFileSync("tar", ["-czf", file, "-C", folder, ...names]);
   return { file, sha256: createHash("sha256").update(readFileSync(file)).digest("hex") };
 }
 
@@ -222,3 +228,39 @@ test("a binary release file without a moai file at its top is an error that name
     assert.throws(() => buildRelease({ releaseFile, sha256, version: VERSION, out, binary: wrong }), /holds no moai file at its top/);
   });
 });
+
+test("the build copies the LICENSE of the binary release file to bin/moai.LICENSE", () => {
+  withBuild(({ releaseFile, sha256, binary, out }) => {
+    buildRelease({ releaseFile, sha256, version: VERSION, out, binary });
+    assert.equal(readFileSync(join(out, "bin", "moai.LICENSE"), "utf8"), "fixture Apache License 2.0 text\n");
+  });
+});
+
+test("the build copies the NOTICE of the binary release file to bin/moai.NOTICE when the release file holds one", () => {
+  withBuild(({ releaseFile, sha256, work, out }) => {
+    const binary = binaryOfFixture(work, { notice: true });
+    buildRelease({ releaseFile, sha256, version: VERSION, out, binary });
+    assert.equal(readFileSync(join(out, "bin", "moai.NOTICE"), "utf8"), "fixture NOTICE text\n");
+  });
+});
+
+test("the build writes no bin/moai.NOTICE when the binary release file holds no NOTICE", () => {
+  withBuild(({ releaseFile, sha256, binary, out }) => {
+    buildRelease({ releaseFile, sha256, version: VERSION, out, binary });
+    assert.equal(existsSync(join(out, "bin", "moai.NOTICE")), false);
+  });
+});
+
+test("a binary release file without a LICENSE is refused before bin/moai is written", () => {
+  withBuild(({ releaseFile, sha256, work, out }) => {
+    const folder = join(work, "no-license-src");
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, "moai"), "#!/bin/sh\necho fixture-moai\n");
+    const file = join(work, "no-license.tar.gz");
+    execFileSync("tar", ["-czf", file, "-C", folder, "moai"]);
+    const binary = { file, sha256: createHash("sha256").update(readFileSync(file)).digest("hex") };
+    assert.throws(() => buildRelease({ releaseFile, sha256, version: VERSION, out, binary }), /holds no LICENSE at its top/);
+    assert.equal(existsSync(join(out, "bin", "moai")), false);
+  });
+});
+
