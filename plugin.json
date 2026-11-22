@@ -1,0 +1,16 @@
+{
+  "id": "moai",
+  "name": "moai",
+  "description": "agents 플러그인의 moai 메이커 group을 제공한다.",
+  "dependencies": {
+    "agents": "^0.0.1"
+  },
+  "contributes": {
+    "agents.makers": [
+      {
+        "range": "^0.0.1",
+        "module": "ui/makers/moai.js"
+      }
+    ]
+  }
+}
