@@ -1,24 +1,18 @@
 {
   "id": "moai",
   "name": "moai",
-  "description": "agents 플러그인의 moai 메이커 group과 moai web 화면을 제공한다.",
+  "description": "agents 플러그인의 moai 메이커 group과 moai SPEC 목록 화면을 제공한다.",
   "mark": "moai",
   "icon": "<circle cx=\"8\" cy=\"8\" r=\"5.5\"/><path d=\"M5 8h6M8 5v6\"/>",
   "surface": {
     "composition": {
       "kind": "view",
-      "page": "ui/web.html",
-      "regions": [
-        {
-          "name": "moai-web",
-          "kind": "document",
-          "input": "native"
-        }
-      ]
+      "page": "ui/specs.html"
     }
   },
   "dependencies": {
-    "agents": "^0.0.1"
+    "agents": "^0.0.1",
+    "@soksak/sidecar-files": "^0.0.11"
   },
   "contributes": {
     "agents.makers": [

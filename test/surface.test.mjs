@@ -7,12 +7,11 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const manifest = JSON.parse(read("plugin.json"));
 const pkg = JSON.parse(read("package.json"));
 
-test("plugin.json shows the moai web surface as a view of its own page with one native document region", () => {
+test("plugin.json shows the moai surface as a view of its own page, with no document region and no web server", () => {
   assert.deepEqual(manifest.surface, {
     composition: {
       kind: "view",
-      page: "ui/web.html",
-      regions: [{ name: "moai-web", kind: "document", input: "native" }],
+      page: "ui/specs.html",
     },
   });
 });
@@ -25,12 +24,6 @@ test("the surface names its tab with a mark and an icon of 16x16 SVG elements", 
   assert.doesNotMatch(manifest.icon, /<svg|<script|\son[a-z]+=/i);
 });
 
-test("the region names match the name syntax and are unique", () => {
-  const names = manifest.surface.composition.regions.map((region) => region.name);
-  assert.deepEqual(names, [...new Set(names)]);
-  for (const name of names) assert.match(name, /^[a-z0-9][a-z0-9-]{0,63}$/);
-});
-
 test("the surface page is a relative path inside the plugin that the release ships", () => {
   const page = manifest.surface.composition.page;
   assert.match(page, /^ui\/[a-z0-9-]+\.html$/);
@@ -39,12 +32,15 @@ test("the surface page is a relative path inside the plugin that the release shi
   assert.ok(pkg.files.includes("ui"), "package.json files does not ship ui");
 });
 
-test("the surface page holds the element of its document region and no script", () => {
+test("the surface page loads its module from the plugin and holds no inline script", () => {
   const html = read(manifest.surface.composition.page);
-  const regions = manifest.surface.composition.regions.map((region) => region.name);
-  for (const name of regions) {
-    const elements = html.match(new RegExp(`data-region="${name}"`, "g")) ?? [];
-    assert.equal(elements.length, 1, `the page holds ${elements.length} elements of region ${name}`);
+  assert.doesNotMatch(html, /<script(?![^>]*\ssrc=)/i, "the page holds an inline script");
+  assert.match(html, /<script type="module" src="\.\/specs\.js"><\/script>/);
+});
+
+test("the page modules hold no timer, polling interval or timeout: the page updates from events only", () => {
+  const TIMERS = /\b(?:setInterval|setTimeout|setImmediate|requestAnimationFrame|requestIdleCallback)\s*\(/;
+  for (const file of ["ui/specs.js", "ui/specs-model.js"]) {
+    assert.doesNotMatch(read(file), TIMERS, `${file} starts a timer; the page must update from the files sidecar events, not from a timer`);
   }
-  assert.doesNotMatch(html, /<script/i, "the page holds a script before the moai web controller exists");
 });
