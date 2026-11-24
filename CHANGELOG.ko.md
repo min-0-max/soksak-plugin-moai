@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- M31: version은 0.0.6이고, agents 0.0.5를 요구해요.
 - M30: Release build가 고정된 moai-adk 원본에 `release/patches/claude-config-dir.patch`를 적용해 `plugin/bin/moai`를 compile해요. 그래서 moai hook은 세션의 Claude Code 데이터를 `CLAUDE_CONFIG_DIR`의 설정 home에 두고, 더는 `~/.claude`의 task 폴더를 지우지 않아요.
 - M29: Release build가 메이커 폴더 `plugin/`을 써요. 안에는 moai agent, skill, command, output style, workflow, rule, hook, `bin/moai`, moai-adk LICENSE가 있고, 세션은 이 폴더를 `--plugin-dir`와 `--add-dir`로 읽어요. `maker/index.js`에는 `agents`만 있고, group은 `MOAI_PLUGIN`을 돌려주고 파일은 돌려주지 않아요. Hook은 오류 log를 프로젝트 `.moai/logs`에 써요.
 - M28: 기여하는 group module은 release build가 import 없는 파일 하나로 bundle하는 `maker/moai.js`여서 agents page가 moai group을 import한다. version은 0.0.5이다.

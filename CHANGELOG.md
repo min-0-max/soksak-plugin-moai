@@ -2,6 +2,7 @@
 
 [한국어](CHANGELOG.ko.md)
 
+- M31: The version is 0.0.6, and the plugin requires agents 0.0.5.
 - M30: The release build compiles `plugin/bin/moai` from the pinned moai-adk source with `release/patches/claude-config-dir.patch`, so the moai hooks keep the Claude Code data of a session in the configuration home of `CLAUDE_CONFIG_DIR` and no longer remove the task folders of `~/.claude`.
 - M29: The release build writes the maker folder `plugin/` with the moai agents, skills, commands, output styles, workflows, rules, hooks, `bin/moai` and the moai-adk LICENSE, which a session loads with `--plugin-dir` and `--add-dir`; `maker/index.js` holds only `agents`, the group returns `MOAI_PLUGIN` and no files, and the hooks write their error log into the project `.moai/logs`.
 - M28: The contributed group module is `maker/moai.js`, which the release build bundles into one file with no import, so the agents page imports the moai group; the version is 0.0.5.
