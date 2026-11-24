@@ -17,11 +17,10 @@
     "plugin.json",
     "ui",
     "maker",
-    "plugin",
-    "bin"
+    "plugin"
   ],
   "bin": {
-    "sok-moai": "bin/moai"
+    "sok-moai": "plugin/bin/moai"
   },
   "scripts": {
     "build": "node scripts/build-vendor.mjs",

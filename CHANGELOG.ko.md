@@ -2,6 +2,7 @@
 
 [English](CHANGELOG.md)
 
+- M29: Release build가 메이커 폴더 `plugin/`을 써요. 안에는 moai agent, skill, command, output style, workflow, rule, hook, `bin/moai`, moai-adk LICENSE가 있고, 세션은 이 폴더를 `--plugin-dir`와 `--add-dir`로 읽어요. `maker/index.js`에는 `agents`만 있고, group은 `MOAI_PLUGIN`을 돌려주고 파일은 돌려주지 않아요. Hook은 오류 log를 프로젝트 `.moai/logs`에 써요.
 - M28: 기여하는 group module은 release build가 import 없는 파일 하나로 bundle하는 `maker/moai.js`여서 agents page가 moai group을 import한다. version은 0.0.5이다.
 - M27: release가 `bin/moai`의 실행 bit를 유지해서 install이 program `plugin:bin/moai`를 받는다. version은 0.0.4이다.
 - M26: `plugin.json`이 agents plugin `>=0.0.1`을 요구해서 agents 0.0.2 이후 version과 함께 설치된다. version은 0.0.3이다.

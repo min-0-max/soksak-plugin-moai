@@ -35,9 +35,9 @@ test("plugin.json contributes one moai group to the extension point agents.maker
   assert.equal(item.module, "maker/moai.js");
 });
 
-test("plugin.json declares the moai programs that the pages run by name, each as the plugin-folder path plugin:bin/moai and literal arguments", () => {
-  assert.deepEqual(manifest.programs["config-load"], { program: "plugin:bin/moai", args: ["doctor", "config", "dump", "--format", "json"] });
-  assert.deepEqual(manifest.programs["spec-audit"], { program: "plugin:bin/moai", args: ["spec", "audit", "--json", "--base-dir", "."] });
+test("plugin.json declares the moai programs that the pages run by name, each as the plugin-folder path plugin:plugin/bin/moai and literal arguments", () => {
+  assert.deepEqual(manifest.programs["config-load"], { program: "plugin:plugin/bin/moai", args: ["doctor", "config", "dump", "--format", "json"] });
+  assert.deepEqual(manifest.programs["spec-audit"], { program: "plugin:plugin/bin/moai", args: ["spec", "audit", "--json", "--base-dir", "."] });
 });
 
 test("plugin.json extends no extension point, because the moai plugin is a contributor only", () => {
@@ -48,8 +48,9 @@ test("package.json publishes the manifest that the release holds", () => {
   assert.ok(pkg.files.includes("plugin.json"), "package.json files does not list plugin.json");
 });
 
-test("package.json publishes the moai binary that the release build writes to bin/", () => {
-  assert.ok(pkg.files.includes("bin"), "package.json files does not list bin, the folder of the moai binary");
+test("package.json publishes the maker folder plugin/, which holds the moai binary, and no separate bin folder", () => {
+  assert.ok(pkg.files.includes("plugin"), "package.json files does not list plugin, the maker folder");
+  assert.equal(pkg.files.includes("bin"), false, "package.json files lists bin, which the build no longer writes");
 });
 
 test("package.json publishes the maker release folder, which holds the group module", () => {

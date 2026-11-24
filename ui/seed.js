@@ -5,8 +5,8 @@
 import { gitValues, templateValues } from "./seed-model.js";
 import { createFolderRequest, localeOf, planSeed, projectNameOf, renderSeedFile, seedDirectories, writeRequest } from "./seed-plan.js";
 
-// The shell of the agent process expands MOAI_HOME, which the group sets, so the path needs no home folder of the account.
-const RESOLVED_MOAI_PATH = "$MOAI_HOME/bin/moai";
+// The shell of the agent process expands MOAI_PLUGIN, the maker folder that the group sets, whose bin/ holds the moai binary.
+const RESOLVED_MOAI_PATH = "$MOAI_PLUGIN/bin/moai";
 
 export async function seedMoaiProject({ request, project, language, now, readIndex, readSeed }) {
   if (!project) throw new Error("moai seed needs a project; the window shows none");

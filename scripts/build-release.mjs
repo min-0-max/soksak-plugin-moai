@@ -1,14 +1,19 @@
 #!/usr/bin/env node
 // Builds the release folders of the moai plugin from the moai-adk release pinned in release/upstream.json:
-//   maker/index.js        the data module: the moai agents (.claude/agents/moai/*.md, with the model of each definition), the moai skill folders
-//                         (.claude/skills/moai*/ with SKILL.md) and every file of them with its project path and corrected text (no model line)
+//   plugin/               the maker folder (agents docs/spec/makers.md): a session loads it with --plugin-dir and --add-dir, so nothing of
+//                         moai is written into a project and the texts call the agents, skills and commands by their own names
+//     .claude-plugin/plugin.json   the plugin manifest that --plugin-dir reads
+//     hooks/hooks.json     the hook registrations, with the scripts under ${CLAUDE_PLUGIN_ROOT}/hooks/moai/ and bin/ on their PATH
+//     hooks/moai/          the hook scripts that a registration or an agent hook runs
+//     bin/moai             the moai binary of the pinned darwin-arm64 asset, with bin/moai.LICENSE and bin/moai.NOTICE when the asset has one
+//     .claude/agents/moai/ the moai agents without their model line, their hooks under $MOAI_PLUGIN/hooks/moai/ with bin/ on their PATH
+//     .claude/skills/moai*/, .claude/commands/moai/, .claude/output-styles/moai/, .claude/workflows/, .claude/rules/
+//                          the moai skills, commands, output styles, workflows and the rule files that the texts name, unchanged
+//     LICENSE              the Apache-2.0 LICENSE of moai-adk
+//   maker/index.js        the data module: the moai agents with their path in the maker folder and the model of each definition
 //   maker/moai.js         the contributed group module: src/group.js and maker/index.js bundled into one file with no import
 //   maker/settings.json   the settings of the release that are not hook registrations (the account settings)
 //   maker/seed/.moai      the release .moai folder with its templates unrendered (the page renders them with the project values)
-//   plugin/hooks/hooks.json      the hook registrations, with the scripts under ${CLAUDE_PLUGIN_ROOT}/hooks/moai/
-//   plugin/hooks/moai/    the hook scripts that a registration runs
-//   bin/moai              the moai binary of the pinned darwin-arm64 asset of the same release (the program `plugin:bin/moai`)
-//   bin/moai.LICENSE      the LICENSE of the release file, and bin/moai.NOTICE its NOTICE when the release file holds one
 // The release file and the binary release file must equal their sha256 pins before anything is extracted or written. The build reads no other network address.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -24,6 +29,15 @@ const HOOK_PREFIX = "${CLAUDE_PROJECT_DIR}/.claude/hooks/moai/";
 const PLUGIN_HOOK_PREFIX = "${CLAUDE_PLUGIN_ROOT}/hooks/moai/";
 const LOG_FOLDER_FROM = 'd="${0%/.claude/hooks/moai/*}"';
 const LOG_FOLDER_TO = 'd="${CLAUDE_PROJECT_DIR}"';
+// A plugin hook runs without the plugin bin/ folder on its PATH, and the scripts look for moai on PATH (agents A37 (10)).
+// The scripts write their error output to $HOME/.moai/logs unless MOAI_HOOK_STDERR_LOG names a file under the project .moai/logs, so a
+// registration names that file and the log stays in the project.
+const HOOK_PATH = 'PATH="${CLAUDE_PLUGIN_ROOT}/bin:$PATH"; export MOAI_HOOK_STDERR_LOG="${CLAUDE_PROJECT_DIR}/.moai/logs/hook-stderr.log"; ';
+// An agent hook of a folder added with --add-dir has no CLAUDE_PLUGIN_ROOT; the session sets MOAI_PLUGIN to the maker folder.
+const AGENT_HOOK_FROM = '\\"$CLAUDE_PROJECT_DIR/.claude/hooks/moai/';
+const AGENT_HOOK_TO = 'PATH=\\"$MOAI_PLUGIN/bin:$PATH\\" MOAI_HOOK_STDERR_LOG=\\"$CLAUDE_PROJECT_DIR/.moai/logs/hook-stderr.log\\" \\"$MOAI_PLUGIN/hooks/moai/';
+// The folders of the release .claude that the maker folder holds unchanged.
+const COPIED = ["commands/moai", "output-styles/moai", "workflows", "rules"];
 
 // frontmatterFields returns the name and the optional model of an agent file. The name is required, because the group
 // identifies the agent by it; a model that is present must be a non-empty string.
@@ -37,11 +51,6 @@ export function frontmatterFields(file, text) {
     throw new Error(`${file}: frontmatter model must be a non-empty string`);
   }
   return { name: data.name.trim(), model: data.model === undefined ? undefined : data.model.trim() };
-}
-
-// withoutModel removes the model line of the frontmatter, so the session model is not overwritten (club.md, measurement C4).
-export function withoutModel(text) {
-  return text.replace(/^---\n([\s\S]*?)\n---/, (block, body) => `---\n${body.split("\n").filter((line) => !/^model:/.test(line)).join("\n")}\n---`);
 }
 
 // transformHooks moves each registration to the plugin path. A registration that runs a script outside the moai hook folder is an error.
@@ -59,6 +68,8 @@ function transformHooks(hooks, scripts) {
         // The fallback of the command derives the log folder from $0, which is the script path. A plugin path has no
         // .claude/hooks/moai segment, so the fallback takes the project folder from CLAUDE_PROJECT_DIR, the variable that
         // the same command already uses for the script path.
+        if (args[0] !== "-c" || typeof args[1] !== "string") throw new Error(`hook command is not bash -c <script> <path>: ${[hook.command, ...args].join(" ")}`);
+        args[1] = HOOK_PATH + args[1];
         for (let i = 0; i < args.length; i += 1) {
           if (typeof args[i] === "string" && args[i].includes(LOG_FOLDER_FROM)) {
             args[i] = args[i].replaceAll(LOG_FOLDER_FROM, LOG_FOLDER_TO);
@@ -78,7 +89,7 @@ function transformHooks(hooks, scripts) {
   return moved;
 }
 
-// buildBinary writes out/bin/moai from the binary release file of the pinned asset. The binary release file must hold a file named moai at its top.
+// buildBinary writes out/plugin/bin/moai from the binary release file of the pinned asset. The binary release file must hold a file named moai at its top.
 // The binary is an executable that the release pins; the build copies it as the binary release file holds it.
 export function buildBinary({ file, sha256, out }) {
   const digest = createHash("sha256").update(readFileSync(file)).digest("hex");
@@ -91,24 +102,35 @@ export function buildBinary({ file, sha256, out }) {
     // moai-adk is Apache-2.0: the redistributed binary carries the LICENSE of its release file, and the NOTICE when the release file has one.
     const license = join(work, "LICENSE");
     if (!existsSync(license)) throw new Error(`binary release file holds no LICENSE at its top: ${file}`);
-    rmSync(join(out, "bin"), { recursive: true, force: true });
-    mkdirSync(join(out, "bin"), { recursive: true });
-    copyFileSync(source, join(out, "bin", "moai"));
-    chmodSync(join(out, "bin", "moai"), 0o755);
-    copyFileSync(license, join(out, "bin", "moai.LICENSE"));
+    const bin = join(out, "plugin", "bin");
+    mkdirSync(bin, { recursive: true });
+    copyFileSync(source, join(bin, "moai"));
+    chmodSync(join(bin, "moai"), 0o755);
+    copyFileSync(license, join(bin, "moai.LICENSE"));
     const notice = join(work, "NOTICE");
-    if (existsSync(notice)) copyFileSync(notice, join(out, "bin", "moai.NOTICE"));
+    if (existsSync(notice)) copyFileSync(notice, join(bin, "moai.NOTICE"));
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
 }
 
-// buildRelease writes maker/, plugin/ and bin/ under out from the release file of the pinned release and the pinned binary release file.
+// agentText returns the text of an agent in the maker folder: the model line stays, because a session runs the agent as a subagent from
+// this file, and each agent hook runs under $MOAI_PLUGIN/hooks/moai/ with bin/ on its PATH and its error log in the project. A hook path
+// of the project that is not rewritten is an error that names the file.
+export function agentText(file, text) {
+  const moved = text.replaceAll(AGENT_HOOK_FROM, AGENT_HOOK_TO);
+  if (moved.includes("$CLAUDE_PROJECT_DIR/.claude/")) throw new Error(`${file}: a hook names a project path under .claude that is not rewritten`);
+  return moved;
+}
+
+// buildRelease writes plugin/ and maker/ under out from the release file of the pinned release and the pinned binary release file.
 export function buildRelease({ releaseFile, sha256, version, out, binary }) {
   if (typeof version !== "string" || version === "") throw new Error("buildRelease requires the release version");
   if (binary === undefined) throw new Error("buildRelease requires the binary release file of the pinned asset");
   const digest = createHash("sha256").update(readFileSync(releaseFile)).digest("hex");
   if (digest !== sha256) throw new Error(`release file sha256 ${digest} does not match the pinned ${sha256}: ${releaseFile}`);
+  rmSync(join(out, "maker"), { recursive: true, force: true });
+  rmSync(join(out, "plugin"), { recursive: true, force: true });
   buildBinary({ file: binary.file, sha256: binary.sha256, out });
 
   const work = mkdtempSync(join(tmpdir(), "moai-release-"));
@@ -116,58 +138,65 @@ export function buildRelease({ releaseFile, sha256, version, out, binary }) {
     execFileSync("tar", ["-xzf", releaseFile, "-C", work]);
     const top = readdirSync(work);
     if (top.length !== 1) throw new Error(`release file must hold one top folder, found: ${top.join(", ")}`);
-    const claude = join(work, top[0], ".claude");
-
-    rmSync(join(out, "maker"), { recursive: true, force: true });
-    rmSync(join(out, "plugin"), { recursive: true, force: true });
-    const files = [];
+    const root = join(work, top[0]);
+    const claude = join(root, ".claude");
+    const plugin = join(out, "plugin");
     mkdirSync(join(out, "maker"), { recursive: true });
 
-    // agents: .claude/agents/moai/*.md, written at their upstream paths with the model line removed
+    // agents: .claude/agents/moai/*.md, at their upstream paths in the maker folder, without the model line and with the hooks moved
     const agentSource = join(claude, "agents", "moai");
+    const scripts = new Set();
     const agents = readdirSync(agentSource)
       .filter((file) => file.endsWith(".md"))
       .sort()
       .map((file) => {
-        const text = readFileSync(join(agentSource, file), "utf8");
+        const text = readText(join(agentSource, file));
         const { name, model } = frontmatterFields(`agents/moai/${file}`, text);
         const path = `.claude/agents/moai/${file}`;
-        files.push({ path, text: withoutModel(text) });
+        const moved = agentText(path, text);
+        for (const match of moved.matchAll(/\$MOAI_PLUGIN\/hooks\/moai\/([A-Za-z0-9._-]+)/g)) scripts.add(match[1]);
+        mkdirSync(join(plugin, ".claude", "agents", "moai"), { recursive: true });
+        writeFileSync(join(plugin, path), moved);
         return model === undefined ? { name, path, cli: "claude" } : { name, path, cli: "claude", model };
       });
 
-    // skills: .claude/skills/moai*/ that hold a SKILL.md; every file of each folder is an entry of files
+    // skills: .claude/skills/moai*/ that hold a SKILL.md, every file of each folder unchanged
     const skillSource = join(claude, "skills");
-    const skills = readdirSync(skillSource)
-      .filter((name) => name.startsWith("moai") && existsSync(join(skillSource, name, "SKILL.md")))
-      .sort();
-    for (const name of skills) {
-      for (const file of listFiles(join(skillSource, name))) {
-        files.push({ path: `.claude/skills/${name}/${file}`, text: readText(join(skillSource, name, file)) });
-      }
+    for (const name of readdirSync(skillSource).filter((entry) => entry.startsWith("moai") && existsSync(join(skillSource, entry, "SKILL.md"))).sort()) {
+      cpSync(join(skillSource, name), join(plugin, ".claude", "skills", name), { recursive: true });
     }
-    const folders = skills.map((name) => `.claude/skills/${name}`);
-    // The data module holds the agents, the skill folders and every file with its project path.
-    writeFileSync(join(out, "maker", "index.js"), indexModule({ agents, skills: folders, files }));
+    // commands, output styles, workflows and rules, which the texts name by their .claude paths
+    for (const folder of COPIED) {
+      const source = join(claude, folder);
+      if (!existsSync(source)) throw new Error(`release has no .claude/${folder} folder`);
+      cpSync(source, join(plugin, ".claude", folder), { recursive: true });
+    }
+    // moai-adk is Apache-2.0: the maker folder carries the LICENSE of the release.
+    if (!existsSync(join(root, "LICENSE"))) throw new Error("release has no LICENSE at its top");
+    copyFileSync(join(root, "LICENSE"), join(plugin, "LICENSE"));
+    mkdirSync(join(plugin, ".claude-plugin"), { recursive: true });
+    writeFileSync(join(plugin, ".claude-plugin", "plugin.json"), `${JSON.stringify({ name: "moai", version: version.replace(/^v/, ""), description: "The hooks and the moai binary of moai-adk for a session of the moai maker folder.", license: "Apache-2.0" }, null, 2)}\n`);
+
+    // The data module holds the agents with their path in the maker folder.
+    writeFileSync(join(out, "maker", "index.js"), indexModule({ agents }));
     bundleGroup(out);
 
     // settings: the registrations go to plugin/hooks/hooks.json, the rest to maker/settings.json
     const settings = JSON.parse(readFileSync(join(claude, "settings.json"), "utf8"));
     const { hooks = {}, ...rest } = settings;
-    const scripts = new Set();
     const moved = transformHooks(hooks, scripts);
-    const hookDest = join(out, "plugin", "hooks", "moai");
+    const hookDest = join(plugin, "hooks", "moai");
     mkdirSync(hookDest, { recursive: true });
     for (const script of [...scripts].sort()) {
       const source = join(claude, "hooks", "moai", script);
       if (!existsSync(source)) throw new Error(`hook script is missing from the release: hooks/moai/${script}`);
       cpSync(source, join(hookDest, script));
     }
-    writeFileSync(join(out, "plugin", "hooks", "hooks.json"), `${JSON.stringify({ hooks: moved }, null, 2)}\n`);
+    writeFileSync(join(plugin, "hooks", "hooks.json"), `${JSON.stringify({ hooks: moved }, null, 2)}\n`);
     writeFileSync(join(out, "maker", "settings.json"), `${JSON.stringify(rest, null, 2)}\n`);
 
     // seed: the release .moai folder, shipped unrendered; the page renders its templates with the project values
-    const seedSource = join(work, top[0], "internal", "template", "templates", ".moai");
+    const seedSource = join(root, "internal", "template", "templates", ".moai");
     if (!existsSync(seedSource)) throw new Error("release has no .moai template folder: internal/template/templates/.moai");
     cpSync(seedSource, join(out, "maker", "seed", ".moai"), { recursive: true });
     // The page reads the seed through the plugin modules path, which lists no folder, so the build writes the file list
@@ -210,9 +239,9 @@ function bundleGroup(out) {
   });
 }
 
-// indexModule returns the source of the data module maker/index.js with the agents, the skill folders and the files.
-export function indexModule({ agents, skills, files }) {
-  return `export const agents = ${JSON.stringify(agents, null, 2)};\n\nexport const skills = ${JSON.stringify(skills, null, 2)};\n\nexport const files = ${JSON.stringify(files, null, 2)};\n`;
+// indexModule returns the source of the data module maker/index.js with the agents.
+export function indexModule({ agents }) {
+  return `export const agents = ${JSON.stringify(agents, null, 2)};\n`;
 }
 
 function parseArgs(argv) {
