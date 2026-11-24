@@ -1,0 +1,228 @@
+This patch modifies moai-adk v3.1.2 (Apache-2.0, https://github.com/modu-ai/moai-adk).
+The release build of the moai plugin applies it to the pinned source release before it builds plugin/bin/moai.
+
+Change: the hooks and the status line read the configuration home of Claude Code from CLAUDE_CONFIG_DIR when it holds an
+absolute path, and from the home folder joined with .claude otherwise (paths.ClaudeDir). Without it, a session that runs
+with its own configuration home removes the task folders of ~/.claude/tasks at its end, removes the team folders of
+~/.claude/teams that are older than 24 hours, and writes memory into ~/.claude/projects, which belong to other sessions.
+
+diff --git a/internal/hook/home_isolation_test.go b/internal/hook/home_isolation_test.go
+index f747037..28be4a8 100644
+--- a/internal/hook/home_isolation_test.go
++++ b/internal/hook/home_isolation_test.go
+@@ -83,7 +83,7 @@ var homeJoinSiteAllowlist = []string{
+ 	"internal/cli/migrate_profiles.go",
+ 	"internal/cli/preference/cmd.go",
+ 	"internal/cli/tokens.go", // glob READ of the real home (session transcript lookup)
+-	"internal/hook/session_end.go",
++	// internal/hook/session_end.go builds the memory path from paths.ClaudeDir, which follows CLAUDE_CONFIG_DIR.
+ }
+ 
+ // TestHomeJoinSiteCountIsPinned asserts the tree's home-join sites match
+diff --git a/internal/hook/session_end.go b/internal/hook/session_end.go
+index b884df0..8007706 100644
+--- a/internal/hook/session_end.go
++++ b/internal/hook/session_end.go
+@@ -16,6 +16,8 @@ import (
+ 	"github.com/modu-ai/moai-adk/internal/hook/handoff"
+ 	"github.com/modu-ai/moai-adk/internal/hook/mx"
+ 	"github.com/modu-ai/moai-adk/internal/hook/trace"
++
++	"github.com/modu-ai/moai-adk/internal/paths"
+ )
+ 
+ // teamConfig is the minimal structure read from ~/.claude/teams/*/config.json.
+@@ -212,7 +214,7 @@ func resolveMemoryDir(homeDir, projectDir string) (string, error) {
+ 	if err != nil {
+ 		return "", fmt.Errorf("resolve absolute project path: %w", err)
+ 	}
+-	return filepath.Join(homeDir, ".claude", "projects", projectSlug(absDir), "memory"), nil
++	return filepath.Join(paths.ClaudeDir(homeDir), "projects", projectSlug(absDir), "memory"), nil
+ }
+ 
+ // projectSlug encodes an absolute path into Claude Code's project directory
+@@ -339,7 +341,7 @@ func validateMxTags(ctx context.Context, filePaths []string, projectRoot string)
+ // cleanupCurrentSessionTeam removes the team directory whose leadSessionId
+ // matches the given sessionID. Errors are logged and never returned.
+ func cleanupCurrentSessionTeam(sessionID, homeDir string) {
+-	teamsDir := filepath.Join(homeDir, ".claude", "teams")
++	teamsDir := filepath.Join(paths.ClaudeDir(homeDir), "teams")
+ 
+ 	entries, err := os.ReadDir(teamsDir)
+ 	if err != nil {
+@@ -387,7 +389,7 @@ func cleanupCurrentSessionTeam(sessionID, homeDir string) {
+ 					"session_id", sessionID,
+ 				)
+ 				// Also remove the corresponding task directory when the team directory is successfully deleted
+-				tasksDir := filepath.Join(homeDir, ".claude", "tasks", entry.Name())
++				tasksDir := filepath.Join(paths.ClaudeDir(homeDir), "tasks", entry.Name())
+ 				if err := os.RemoveAll(tasksDir); err != nil {
+ 					slog.Warn("session_end: could not remove task directory for session",
+ 						"path", tasksDir,
+@@ -410,7 +412,7 @@ func cleanupCurrentSessionTeam(sessionID, homeDir string) {
+ func garbageCollectStaleTeams(homeDir string) {
+ 	const staleDuration = 24 * time.Hour
+ 
+-	teamsDir := filepath.Join(homeDir, ".claude", "teams")
++	teamsDir := filepath.Join(paths.ClaudeDir(homeDir), "teams")
+ 
+ 	entries, err := os.ReadDir(teamsDir)
+ 	if err != nil {
+@@ -452,7 +454,7 @@ func garbageCollectStaleTeams(homeDir string) {
+ 					"age", time.Since(info.ModTime()).Round(time.Minute),
+ 				)
+ 				// Also remove the corresponding task directory when a stale team directory is successfully deleted
+-				taskDir := filepath.Join(homeDir, ".claude", "tasks", entry.Name())
++				taskDir := filepath.Join(paths.ClaudeDir(homeDir), "tasks", entry.Name())
+ 				if err := os.RemoveAll(taskDir); err != nil {
+ 					slog.Warn("session_end: could not remove stale task directory",
+ 						"path", taskDir,
+@@ -472,8 +474,8 @@ func garbageCollectStaleTeams(homeDir string) {
+ // that have no corresponding team directory. Collects task directories left behind by
+ // interrupted sessions or incomplete cleanup. Errors are logged and never returned.
+ func garbageCollectOrphanedTasks(homeDir string) {
+-	tasksDir := filepath.Join(homeDir, ".claude", "tasks")
+-	teamsDir := filepath.Join(homeDir, ".claude", "teams")
++	tasksDir := filepath.Join(paths.ClaudeDir(homeDir), "tasks")
++	teamsDir := filepath.Join(paths.ClaudeDir(homeDir), "teams")
+ 
+ 	taskEntries, err := os.ReadDir(tasksDir)
+ 	if err != nil {
+diff --git a/internal/hook/session_end_config_dir_test.go b/internal/hook/session_end_config_dir_test.go
+new file mode 100644
+index 0000000..0c5e48e
+--- /dev/null
++++ b/internal/hook/session_end_config_dir_test.go
+@@ -0,0 +1,31 @@
++package hook
++
++import (
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++// The cleanup at the end of a session reads the teams and the tasks of the
++// configuration home of that session: with CLAUDE_CONFIG_DIR set, a task folder
++// of ~/.claude is kept and an orphaned task folder of the configuration home is
++// removed.
++func TestGarbageCollectOrphanedTasksUsesClaudeConfigDir(t *testing.T) {
++	home := t.TempDir()
++	config := t.TempDir()
++	t.Setenv("CLAUDE_CONFIG_DIR", config)
++	personTask := filepath.Join(home, ".claude", "tasks", "person-session")
++	orphan := filepath.Join(config, "tasks", "orphan-session")
++	for _, dir := range []string{personTask, orphan, filepath.Join(home, ".claude", "teams"), filepath.Join(config, "teams")} {
++		if err := os.MkdirAll(dir, 0o755); err != nil {
++			t.Fatal(err)
++		}
++	}
++	garbageCollectOrphanedTasks(home)
++	if _, err := os.Stat(personTask); err != nil {
++		t.Fatalf("the task folder of ~/.claude was removed: %v", err)
++	}
++	if _, err := os.Stat(orphan); !os.IsNotExist(err) {
++		t.Fatalf("the orphaned task folder of CLAUDE_CONFIG_DIR remains: %v", err)
++	}
++}
+diff --git a/internal/hook/subagent_stop.go b/internal/hook/subagent_stop.go
+index 5bb1e81..eafb656 100644
+--- a/internal/hook/subagent_stop.go
++++ b/internal/hook/subagent_stop.go
+@@ -16,6 +16,8 @@ import (
+ 	"time"
+ 
+ 	"github.com/modu-ai/moai-adk/internal/harness/capture"
++
++	"github.com/modu-ai/moai-adk/internal/paths"
+ )
+ 
+ // subagentStopHandler processes SubagentStop events.
+@@ -70,7 +72,7 @@ func (h *subagentStopHandler) Handle(ctx context.Context, input *HookInput) (*Ho
+ 		return &HookOutput{}, nil
+ 	}
+ 
+-	teamConfigPath := fmt.Sprintf("%s/.claude/teams/%s/config.json", homeDir, input.TeamName)
++	teamConfigPath := filepath.Join(paths.ClaudeDir(homeDir), "teams", input.TeamName, "config.json")
+ 
+ 	// Read team config to find tmuxPaneId
+ 	tmuxPaneID, err := h.findTeammatePaneID(teamConfigPath, input.TeammateName)
+diff --git a/internal/paths/claude_dir_test.go b/internal/paths/claude_dir_test.go
+new file mode 100644
+index 0000000..4b8e3af
+--- /dev/null
++++ b/internal/paths/claude_dir_test.go
+@@ -0,0 +1,29 @@
++package paths
++
++import (
++	"path/filepath"
++	"testing"
++)
++
++// ClaudeDir follows CLAUDE_CONFIG_DIR, which Claude Code reads as its
++// configuration home, so a session started with its own configuration home
++// never reads or removes the data of ~/.claude.
++func TestClaudeDirFollowsClaudeConfigDir(t *testing.T) {
++	home := t.TempDir()
++	config := t.TempDir()
++	t.Setenv("CLAUDE_CONFIG_DIR", config)
++	if got := ClaudeDir(home); got != config {
++		t.Fatalf("ClaudeDir(%q) = %q, want CLAUDE_CONFIG_DIR %q", home, got, config)
++	}
++}
++
++func TestClaudeDirIsHomeDotClaudeWithoutAnAbsoluteClaudeConfigDir(t *testing.T) {
++	home := t.TempDir()
++	for _, value := range []string{"", "relative/config"} {
++		t.Setenv("CLAUDE_CONFIG_DIR", value)
++		if got, want := ClaudeDir(home), filepath.Join(home, ".claude"); got != want {
++			t.Fatalf("CLAUDE_CONFIG_DIR=%q: ClaudeDir(%q) = %q, want %q", value, home, got, want)
++		}
++	}
++}
++
+diff --git a/internal/paths/paths.go b/internal/paths/paths.go
+index a46fd60..d96bcdc 100644
+--- a/internal/paths/paths.go
++++ b/internal/paths/paths.go
+@@ -57,6 +57,17 @@ func Home() (string, error) {
+ 	return os.UserHomeDir()
+ }
+ 
++// ClaudeDir returns the configuration home of Claude Code for the home folder
++// home: CLAUDE_CONFIG_DIR when it holds an absolute path, because Claude Code
++// keeps its settings, projects, teams and tasks there, else home joined with
++// .claude.
++func ClaudeDir(home string) string {
++	if v := os.Getenv("CLAUDE_CONFIG_DIR"); v != "" && filepath.IsAbs(v) {
++		return v
++	}
++	return filepath.Join(home, ".claude")
++}
++
+ // MoaiHome returns the ~/.moai root (REQ-MHP-001/002). A non-empty absolute
+ // MOAI_HOME is returned verbatim as the root; empty equals unset and relative
+ // values are disregarded, falling back to Home() joined with the .moai
+diff --git a/internal/statusline/usage.go b/internal/statusline/usage.go
+index c7ad508..d8ccf1d 100644
+--- a/internal/statusline/usage.go
++++ b/internal/statusline/usage.go
+@@ -16,6 +16,8 @@ import (
+ 	"time"
+ 
+ 	"github.com/modu-ai/moai-adk/internal/defs"
++
++	"github.com/modu-ai/moai-adk/internal/paths"
+ )
+ 
+ const (
+@@ -365,7 +367,7 @@ func readOAuthToken(homeDir string, keychainReader func() (string, error)) strin
+ 		return token
+ 	}
+ 
+-	claudeDir := filepath.Join(homeDir, ".claude")
++	claudeDir := paths.ClaudeDir(homeDir)
+ 
+ 	// Try each credentials file path in priority order.
+ 	// ~/.claude/.credentials.json is the path Claude Code uses on Linux/WSL2 (dot-prefixed).

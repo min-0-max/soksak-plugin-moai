@@ -5,7 +5,8 @@
 //     .claude-plugin/plugin.json   the plugin manifest that --plugin-dir reads
 //     hooks/hooks.json     the hook registrations, with the scripts under ${CLAUDE_PLUGIN_ROOT}/hooks/moai/ and bin/ on their PATH
 //     hooks/moai/          the hook scripts that a registration or an agent hook runs
-//     bin/moai             the moai binary of the pinned darwin-arm64 asset, with bin/moai.LICENSE and bin/moai.NOTICE when the asset has one
+//     bin/moai             the darwin-arm64 moai binary built from the pinned source with release/patches/claude-config-dir.patch applied,
+//                          with bin/moai.patch and bin/moai.LICENSE
 //     .claude/agents/moai/ the moai agents without their model line, their hooks under $MOAI_PLUGIN/hooks/moai/ with bin/ on their PATH
 //     .claude/skills/moai*/, .claude/commands/moai/, .claude/output-styles/moai/, .claude/workflows/, .claude/rules/
 //                          the moai skills, commands, output styles, workflows and the rule files that the texts name, unchanged
@@ -14,10 +15,11 @@
 //   maker/moai.js         the contributed group module: src/group.js and maker/index.js bundled into one file with no import
 //   maker/settings.json   the settings of the release that are not hook registrations (the account settings)
 //   maker/seed/.moai      the release .moai folder with its templates unrendered (the page renders them with the project values)
-// The release file and the binary release file must equal their sha256 pins before anything is extracted or written. The build reads no other network address.
+// The release file must equal its sha256 pin before anything is extracted or written. The build reads no other network address than the
+// release file and the Go modules of its go.sum.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -89,29 +91,29 @@ function transformHooks(hooks, scripts) {
   return moved;
 }
 
-// buildBinary writes out/plugin/bin/moai from the binary release file of the pinned asset. The binary release file must hold a file named moai at its top.
-// The binary is an executable that the release pins; the build copies it as the binary release file holds it.
-export function buildBinary({ file, sha256, out }) {
-  const digest = createHash("sha256").update(readFileSync(file)).digest("hex");
-  if (digest !== sha256) throw new Error(`binary release file sha256 ${digest} does not match the pinned ${sha256}: ${file}`);
-  const work = mkdtempSync(join(tmpdir(), "moai-binary-"));
+// The module path of moai-adk, whose pkg/version variables the build sets as the upstream release build sets them (.goreleaser.yml).
+const MODULE = "github.com/modu-ai/moai-adk";
+
+// buildBinary writes out/plugin/bin/moai from the extracted source release root: it applies patch to the source, builds ./cmd/moai for
+// darwin-arm64 with Version set to the release version and Commit set to patch-<first 12 hexadecimal digits of the sha256 of the patch>,
+// so `moai version` names the patch, and writes the patch and the Apache-2.0 LICENSE of moai-adk beside the binary. The release
+// publishes no binary with this change (release/patches/claude-config-dir.patch states it), so the build compiles the pinned source.
+export function buildBinary({ root, patch, version, out }) {
   try {
-    execFileSync("tar", ["-xzf", file, "-C", work]);
-    const source = join(work, "moai");
-    if (!existsSync(source)) throw new Error(`binary release file holds no moai file at its top: ${file}`);
-    // moai-adk is Apache-2.0: the redistributed binary carries the LICENSE of its release file, and the NOTICE when the release file has one.
-    const license = join(work, "LICENSE");
-    if (!existsSync(license)) throw new Error(`binary release file holds no LICENSE at its top: ${file}`);
-    const bin = join(out, "plugin", "bin");
-    mkdirSync(bin, { recursive: true });
-    copyFileSync(source, join(bin, "moai"));
-    chmodSync(join(bin, "moai"), 0o755);
-    copyFileSync(license, join(bin, "moai.LICENSE"));
-    const notice = join(work, "NOTICE");
-    if (existsSync(notice)) copyFileSync(notice, join(bin, "moai.NOTICE"));
-  } finally {
-    rmSync(work, { recursive: true, force: true });
+    execFileSync("git", ["apply", "--whitespace=nowarn", patch], { cwd: root, stdio: ["ignore", "pipe", "pipe"] });
+  } catch (error) {
+    throw new Error(`${patch}: the patch does not apply to the pinned source: ${String(error.stderr ?? error.message).trim()}`);
   }
+  const digest = createHash("sha256").update(readFileSync(patch)).digest("hex").slice(0, 12);
+  const bin = join(out, "plugin", "bin");
+  mkdirSync(bin, { recursive: true });
+  execFileSync("go", ["build", "-trimpath", "-ldflags", `-s -w -X ${MODULE}/pkg/version.Version=${version} -X ${MODULE}/pkg/version.Commit=patch-${digest}`, "-o", join(bin, "moai"), "./cmd/moai"], {
+    cwd: root,
+    env: { ...process.env, CGO_ENABLED: "0", GOOS: "darwin", GOARCH: "arm64" },
+    stdio: ["ignore", "inherit", "inherit"],
+  });
+  copyFileSync(patch, join(bin, "moai.patch"));
+  copyFileSync(join(root, "LICENSE"), join(bin, "moai.LICENSE"));
 }
 
 // agentText returns the text of an agent in the maker folder: the model line stays, because a session runs the agent as a subagent from
@@ -123,15 +125,14 @@ export function agentText(file, text) {
   return moved;
 }
 
-// buildRelease writes plugin/ and maker/ under out from the release file of the pinned release and the pinned binary release file.
-export function buildRelease({ releaseFile, sha256, version, out, binary }) {
+// buildRelease writes plugin/ and maker/ under out from the release file of the pinned release and the patch of its source.
+export function buildRelease({ releaseFile, sha256, version, out, patch }) {
   if (typeof version !== "string" || version === "") throw new Error("buildRelease requires the release version");
-  if (binary === undefined) throw new Error("buildRelease requires the binary release file of the pinned asset");
+  if (patch === undefined) throw new Error("buildRelease requires the patch of the pinned source");
   const digest = createHash("sha256").update(readFileSync(releaseFile)).digest("hex");
   if (digest !== sha256) throw new Error(`release file sha256 ${digest} does not match the pinned ${sha256}: ${releaseFile}`);
   rmSync(join(out, "maker"), { recursive: true, force: true });
   rmSync(join(out, "plugin"), { recursive: true, force: true });
-  buildBinary({ file: binary.file, sha256: binary.sha256, out });
 
   const work = mkdtempSync(join(tmpdir(), "moai-release-"));
   try {
@@ -173,6 +174,7 @@ export function buildRelease({ releaseFile, sha256, version, out, binary }) {
     }
     // moai-adk is Apache-2.0: the maker folder carries the LICENSE of the release.
     if (!existsSync(join(root, "LICENSE"))) throw new Error("release has no LICENSE at its top");
+    buildBinary({ root, patch, version, out });
     copyFileSync(join(root, "LICENSE"), join(plugin, "LICENSE"));
     mkdirSync(join(plugin, ".claude-plugin"), { recursive: true });
     writeFileSync(join(plugin, ".claude-plugin", "plugin.json"), `${JSON.stringify({ name: "moai", version: version.replace(/^v/, ""), description: "The hooks and the moai binary of moai-adk for a session of the moai maker folder.", license: "Apache-2.0" }, null, 2)}\n`);
@@ -247,7 +249,7 @@ export function indexModule({ agents }) {
 function parseArgs(argv) {
   const args = {};
   for (let i = 0; i < argv.length; i += 2) {
-    if (!argv[i].startsWith("--") || argv[i + 1] === undefined) throw new Error(`usage: build-release.mjs [--release-file <file>] [--binary-file <file>] [--out <folder>]`);
+    if (!argv[i].startsWith("--") || argv[i + 1] === undefined) throw new Error(`usage: build-release.mjs [--release-file <file>] [--out <folder>]`);
     args[argv[i].slice(2)] = argv[i + 1];
   }
   return args;
@@ -264,20 +266,12 @@ async function main(argv) {
     releaseFile = join(folder, basename(pin.url));
     writeFileSync(releaseFile, Buffer.from(await response.arrayBuffer()));
   }
-  let binaryFile = args["binary-file"];
-  if (!binaryFile) {
-    const response = await fetch(pin.binary.url);
-    if (!response.ok) throw new Error(`fetch ${pin.binary.url}: HTTP ${response.status}`);
-    const folder = mkdtempSync(join(tmpdir(), "moai-binary-file-"));
-    binaryFile = join(folder, basename(pin.binary.url));
-    writeFileSync(binaryFile, Buffer.from(await response.arrayBuffer()));
-  }
   buildRelease({
     releaseFile,
     sha256: pin.sha256,
     version: pin.tag,
     out: args.out ?? ROOT,
-    binary: { file: binaryFile, sha256: pin.binary.sha256 },
+    patch: join(ROOT, "release", "patches", "claude-config-dir.patch"),
   });
 }
 

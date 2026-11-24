@@ -2,10 +2,5 @@
   "repository": "modu-ai/moai-adk",
   "tag": "v3.1.2",
   "url": "https://codeload.github.com/modu-ai/moai-adk/tar.gz/refs/tags/v3.1.2",
-  "sha256": "3a3297aef711b51060fc98bf2be0d98c12f6cd813bab11708bce4209fd74cbb2",
-  "binary": {
-    "platform": "darwin-arm64",
-    "url": "https://github.com/modu-ai/moai-adk/releases/download/v3.1.2/moai-adk_3.1.2_darwin_arm64.tar.gz",
-    "sha256": "a2136ef049a5ced86d50b259dfd9b761348cd5adc38adfc380fd65a03893966c"
-  }
+  "sha256": "3a3297aef711b51060fc98bf2be0d98c12f6cd813bab11708bce4209fd74cbb2"
 }

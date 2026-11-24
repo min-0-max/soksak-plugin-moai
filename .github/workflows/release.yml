@@ -56,6 +56,10 @@ jobs:
         with:
           node-version-file: .node-version
       - uses: pnpm/action-setup@v4
+      # The release build compiles the moai binary from the pinned source, whose go.mod states the least Go version.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
       - name: Install
         run: make install
       - name: Pack
